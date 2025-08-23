@@ -1,0 +1,48 @@
+# Flask and API
+flask
+flask-restx
+celery[redis]
+redis
+gunicorn
+
+# Data and Storage
+boto3
+sqlalchemy
+psycopg2-binary
+
+# PDF and NLP Libraries from CLI
+pypdf
+pymupdf
+pikepdf
+reportlab
+pdfplumber
+ocrmypdf
+pdf2image
+pytesseract
+pillow
+textblob
+spacy
+gensim
+transformers
+nltk
+langchain
+sentence-transformers
+fasttext
+stanza
+polyglot
+python-docx
+openpyxl
+cryptography
+endesive
+
+# Infrastructure and Monitoring
+clamd
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-flask
+opentelemetry-instrumentation-celery
+opentelemetry-exporter-otlp
+mlflow
+
+# Testing
+pytest
