@@ -1332,12 +1332,18 @@ def api_workflow():
 # Cloud Storage Integration
 # ============================================================================
 
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
+try:
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+    from googleapiclient.http import MediaIoBaseDownload
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    GOOGLE_API_AVAILABLE = True
+except ImportError:
+    GOOGLE_API_AVAILABLE = False
+    logging.warning("Google API libraries not available - Google Drive integration disabled")
+
 import json
 import io
 
@@ -1347,6 +1353,8 @@ CLIENT_CONFIG = json.loads(os.getenv('GOOGLE_CLIENT_CONFIG', '{}'))
 @app.route('/connect-drive')
 @login_required
 def connect_drive():
+    if not GOOGLE_API_AVAILABLE:
+        return jsonify({"error": "Google Drive integration not available"}), 503
     flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
     flow.redirect_uri = url_for('oauth2callback', _external=True)
     authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
@@ -1356,6 +1364,8 @@ def connect_drive():
 @app.route('/oauth2callback')
 @login_required
 def oauth2callback():
+    if not GOOGLE_API_AVAILABLE:
+        return jsonify({"error": "Google Drive integration not available"}), 503
     state = session['state']
     flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES, state=state)
     flow.redirect_uri = url_for('oauth2callback', _external=True)
@@ -1370,6 +1380,8 @@ def oauth2callback():
 @login_required
 def list_drive_files():
     try:
+        if not GOOGLE_API_AVAILABLE:
+            return jsonify({"error": "Google Drive integration not available"}), 503
         if not current_user.google_drive_token:
             return jsonify({"error": "Drive not connected"}), 401
         
@@ -1407,7 +1419,7 @@ def import_drive_file():
 
 @app.route('/api/task-status/<task_id>', methods=['GET'])
 @login_required
-def task_status(task_id):
+def celery_task_status(task_id):
     """Get the status of a Celery task"""
     try:
         from celery.result import AsyncResult
