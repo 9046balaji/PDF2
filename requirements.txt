@@ -1,48 +1,51 @@
-# Flask and API
+# Core Flask and Database
 flask
-flask-restx
-celery[redis]
-redis
-gunicorn
+flask-sqlalchemy
+flask-login
+werkzeug
 
-# Data and Storage
-boto3
-sqlalchemy
-psycopg2-binary
-
-# PDF and NLP Libraries from CLI
+# PDF Processing Libraries
 pypdf
-pymupdf
 pikepdf
 reportlab
 pdfplumber
-ocrmypdf
 pdf2image
-pytesseract
+pymupdf
 pillow
-textblob
-spacy
-gensim
-transformers
-nltk
-langchain
-sentence-transformers
-fasttext
-stanza
-polyglot
+
+# Document Conversion
 python-docx
 openpyxl
-cryptography
-endesive
 
-# Infrastructure and Monitoring
-clamd
+# Utilities
+python-dotenv
+
+# Authentication and Security
+itsdangerous
+flask-mail
+twilio
+redis
+
+# AI/ML and Advanced Features
+celery
+langchain
+transformers
+torch
+sentence-transformers
+faiss-cpu
+spacy
+gensim
+flask-restx
+spacy
+spacy
+
+# Observability
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-instrumentation-flask
 opentelemetry-instrumentation-celery
-opentelemetry-exporter-otlp
-mlflow
+opentelemetry-exporter-jaeger
 
-# Testing
-pytest
+# ML Model Management
+mlflow
+scikit-learn

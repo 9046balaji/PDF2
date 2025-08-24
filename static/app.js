@@ -60,6 +60,194 @@ const toolConfig = {
                 ]
             }
         ]
+    },
+    // --- NEW ADVANCED FEATURES ---
+    'pdf_to_word': {
+        title: 'PDF to Word',
+        description: 'Convert your PDF files to editable DOCX documents',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
+        allowMultiple: false,
+        options: []
+    },
+    'pdf_to_excel': {
+        title: 'PDF to Excel',
+        description: 'Extract tables from PDF and convert to Excel spreadsheet',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M8 13V7"/><path d="M12 13V7"/><path d="M16 13V7"/></svg>,
+        allowMultiple: false,
+        options: []
+    },
+    'pdf_to_jpg': {
+        title: 'PDF to JPG',
+        description: 'Convert PDF pages to high-quality JPG images',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'pages',
+                label: 'Pages to Convert',
+                type: 'text',
+                placeholder: 'Leave empty for all pages (e.g., 1,3,5-7)'
+            },
+            {
+                id: 'dpi',
+                label: 'Image Quality (DPI)',
+                type: 'select',
+                choices: [
+                    { value: '100', label: '100 DPI (smaller files)' },
+                    { value: '150', label: '150 DPI (balanced)' },
+                    { value: '300', label: '300 DPI (high quality)' }
+                ]
+            }
+        ]
+    },
+    'protect': {
+        title: 'Protect PDF',
+        description: 'Add password protection and encrypt your PDF file',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'password',
+                label: 'Set Password',
+                type: 'password',
+                placeholder: 'Enter your password'
+            }
+        ]
+    },
+    'unlock': {
+        title: 'Unlock PDF',
+        description: 'Remove password protection from encrypted PDFs',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path><path d="M12 11v6"/><path d="M12 11l-2-2"/><path d="M12 11l2-2"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'password',
+                label: 'PDF Password',
+                type: 'password',
+                placeholder: 'Enter the PDF password'
+            }
+        ]
+    },
+    'watermark': {
+        title: 'Add Watermark',
+        description: 'Stamp text or image watermarks over your PDF',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'text',
+                label: 'Watermark Text',
+                type: 'text',
+                placeholder: 'e.g., CONFIDENTIAL, DRAFT, etc.'
+            },
+            {
+                id: 'opacity',
+                label: 'Opacity Level',
+                type: 'select',
+                choices: [
+                    { value: '0.1', label: 'Very Light (10%)' },
+                    { value: '0.3', label: 'Light (30%)' },
+                    { value: '0.5', label: 'Medium (50%)' },
+                    { value: '0.7', label: 'Dark (70%)' }
+                ]
+            }
+        ]
+    },
+    'page_numbers': {
+        title: 'Add Page Numbers',
+        description: 'Automatically number all pages in your PDF',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'start',
+                label: 'Starting Number',
+                type: 'number',
+                placeholder: '1'
+            },
+            {
+                id: 'position',
+                label: 'Number Position',
+                type: 'select',
+                choices: [
+                    { value: 'bottom-right', label: 'Bottom Right' },
+                    { value: 'bottom-center', label: 'Bottom Center' },
+                    { value: 'bottom-left', label: 'Bottom Left' },
+                    { value: 'top-right', label: 'Top Right' },
+                    { value: 'top-center', label: 'Top Center' },
+                    { value: 'top-left', label: 'Top Left' }
+                ]
+            }
+        ]
+    },
+    'header_footer': {
+        title: 'Add Headers & Footers',
+        description: 'Insert custom headers and footers on every page',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'header',
+                label: 'Header Text',
+                type: 'text',
+                placeholder: 'e.g., Company Name, Document Title'
+            },
+            {
+                id: 'footer',
+                label: 'Footer Text',
+                type: 'text',
+                placeholder: 'e.g., Page X of Y, Date, Copyright'
+            }
+        ]
+    },
+    // AI-Powered Document Intelligence
+    'chat_pdf': {
+        title: 'Chat with PDF',
+        description: 'Ask questions about your PDF using AI',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'question',
+                label: 'Your Question',
+                type: 'text',
+                placeholder: 'Ask anything about your PDF content...'
+            }
+        ]
+    },
+    'analyze_pdf': {
+        title: 'AI Analysis',
+        description: 'Get AI-powered summary, entities, and topics',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
+        allowMultiple: false,
+        options: []
+    },
+    'classify_document': {
+        title: 'Document Classification',
+        description: 'Automatically classify document type using ML',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
+        allowMultiple: false,
+        options: []
+    },
+    // Workflow Automation
+    'workflow': {
+        title: 'Automated Workflow',
+        description: 'Chain multiple PDF operations automatically',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
+        allowMultiple: false,
+        options: [
+            {
+                id: 'commands',
+                label: 'Workflow Steps',
+                type: 'multiselect',
+                choices: [
+                    { value: 'unlock', label: 'Unlock PDF' },
+                    { value: 'ocr', label: 'Run OCR' },
+                    { value: 'compress', label: 'Compress' },
+                    { value: 'watermark', label: 'Add Watermark' }
+                ]
+            }
+        ]
     }
 };
 
@@ -78,6 +266,10 @@ function App() {
     const [currentUser, setCurrentUser] = React.useState(null);
     const [showLogin, setShowLogin] = React.useState(false);
     const [showRegister, setShowRegister] = React.useState(false);
+    const [showForgotPassword, setShowForgotPassword] = React.useState(false);
+    const [showSetNewPassword, setShowSetNewPassword] = React.useState(false);
+    const [showMobileLogin, setShowMobileLogin] = React.useState(false);
+    const [resetEmail, setResetEmail] = React.useState('');
     
     // App state
     const [currentToolId, setCurrentToolId] = React.useState(null);
@@ -364,9 +556,41 @@ function App() {
                 
                 <main className="max-w-md mx-auto py-12 px-4">
                     {showLogin ? (
-                        <LoginForm onLogin={handleLogin} onSwitchToRegister={() => setShowLogin(false)} />
+                        <LoginForm 
+                            onLogin={handleLogin} 
+                            onSwitchToRegister={() => setShowRegister(true)} 
+                            onForgotPassword={() => setShowForgotPassword(true)}
+                            onMobileLogin={() => setShowMobileLogin(true)}
+                        />
                     ) : showRegister ? (
-                        <RegisterForm onRegister={handleRegister} onSwitchToLogin={() => setShowRegister(false)} />
+                        <RegisterForm onRegister={handleRegister} onSwitchToLogin={() => setShowLogin(true)} />
+                    ) : showForgotPassword ? (
+                        <RequestResetView 
+                            onBackToLogin={() => setShowForgotPassword(false)} 
+                            onResetSent={(email) => {
+                                setResetEmail(email);
+                                setShowForgotPassword(false);
+                                setShowSetNewPassword(true);
+                            }} 
+                        />
+                    ) : showSetNewPassword ? (
+                        <SetNewPasswordView 
+                            email={resetEmail} 
+                            onPasswordReset={() => {
+                                setShowSetNewPassword(false);
+                                setShowLogin(true);
+                            }} 
+                            onBackToLogin={() => setShowSetNewPassword(false)} 
+                        />
+                    ) : showMobileLogin ? (
+                        <MobileLoginView 
+                            onBackToLogin={() => setShowMobileLogin(false)} 
+                            onLoginSuccess={(user) => {
+                                setCurrentUser(user);
+                                setIsAuthenticated(true);
+                                setShowMobileLogin(false);
+                            }} 
+                        />
                     ) : (
                         <div className="text-center">
                             <button 
@@ -519,7 +743,7 @@ function App() {
 }
 
 // Authentication Components
-const LoginForm = ({ onLogin, onSwitchToRegister }) => {
+const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, onMobileLogin }) => {
     const [formData, setFormData] = React.useState({ username: '', password: '' });
 
     const handleSubmit = (e) => {
@@ -558,12 +782,25 @@ const LoginForm = ({ onLogin, onSwitchToRegister }) => {
                     Login
                 </button>
             </form>
-            <p className="mt-4 text-center text-gray-600">
-                Don't have an account?{' '}
-                <button onClick={onSwitchToRegister} className="text-red-500 hover:text-red-600">
-                    Register here
-                </button>
-            </p>
+            
+            <div className="mt-4 space-y-3">
+                <div className="text-center">
+                    <button onClick={onForgotPassword} className="text-red-500 hover:text-red-600 text-sm">
+                        Forgot Password?
+                    </button>
+                </div>
+                <div className="text-center">
+                    <button onClick={onMobileLogin} className="text-blue-500 hover:text-blue-600 text-sm">
+                        Login with Mobile
+                    </button>
+                </div>
+                <p className="text-center text-gray-600">
+                    Don't have an account?{' '}
+                    <button onClick={onSwitchToRegister} className="text-red-500 hover:text-red-600">
+                        Register here
+                    </button>
+                </p>
+            </div>
         </div>
     );
 };
@@ -637,6 +874,270 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
                     Login here
                 </button>
             </p>
+        </div>
+    );
+};
+
+// Request Password Reset Form
+const RequestResetView = ({ onBackToLogin, onResetSent }) => {
+    const [email, setEmail] = React.useState('');
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [message, setMessage] = React.useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setMessage('');
+
+        try {
+            const response = await fetch('/request-password-reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                setMessage(data.message);
+                setTimeout(() => onResetSent(email), 2000);
+            } else {
+                setMessage(data.error || 'Failed to send reset email');
+            }
+        } catch (error) {
+            setMessage('Network error. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Reset Password</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="Enter your email address"
+                        required
+                    />
+                </div>
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                    {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+            </form>
+            
+            {message && (
+                <div className={`mt-4 p-3 rounded-md text-sm ${
+                    message.includes('error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                }`}>
+                    {message}
+                </div>
+            )}
+            
+            <div className="mt-4 text-center">
+                <button onClick={onBackToLogin} className="text-red-500 hover:text-red-600">
+                    Back to Login
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// Set New Password Form
+const SetNewPasswordView = ({ email, onPasswordReset, onBackToLogin }) => {
+    const [formData, setFormData] = React.useState({ new_password: '', confirm_password: '' });
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [message, setMessage] = React.useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (formData.new_password !== formData.confirm_password) {
+            setMessage('Passwords do not match');
+            return;
+        }
+
+        if (formData.new_password.length < 6) {
+            setMessage('Password must be at least 6 characters long');
+            return;
+        }
+
+        setIsLoading(true);
+        setMessage('');
+
+        try {
+            // Extract token from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token') || window.location.pathname.split('/').pop();
+            
+            const response = await fetch(`/reset-password/${token}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_password: formData.new_password })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                setMessage('Password reset successfully!');
+                setTimeout(() => onPasswordReset(), 2000);
+            } else {
+                setMessage(data.error || 'Failed to reset password');
+            }
+        } catch (error) {
+            setMessage('Network error. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Set New Password</h2>
+            <p className="text-center text-gray-600 mb-4">Reset password for: {email}</p>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <input
+                        type="password"
+                        value={formData.new_password}
+                        onChange={(e) => setFormData({ ...formData, new_password: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="Enter new password"
+                        required
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <input
+                        type="password"
+                        value={formData.confirm_password}
+                        onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="Confirm new password"
+                        required
+                    />
+                </div>
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                    {isLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+            </form>
+            
+            {message && (
+                <div className={`mt-4 p-3 rounded-md text-sm ${
+                    message.includes('error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                }`}>
+                    {message}
+                </div>
+            )}
+            
+            <div className="mt-4 text-center">
+                <button onClick={onBackToLogin} className="text-backToLogin} className="text-red-500 hover:text-red-600">
+                    Back to Login
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// Mobile Login Form
+const MobileLoginView = ({ onBackToLogin, onLoginSuccess }) => {
+    const [phoneNumber, setPhoneNumber] = React.useState('');
+    const [otp, setOtp] = React.useState('');
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [message, setMessage] = React.useState('');
+    const [otpSent, setOtpSent] = React.useState(false);
+
+    const handleSendOTP = async () => {
+        if (!phoneNumber) {
+            setMessage('Please enter a phone number');
+            return;
+        }
+
+        setIsLoading(true);
+        setMessage('');
+
+        try {
+            const response = await fetch('/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone_number: phoneNumber })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                setMessage('OTP sent successfully! Check your phone.');
+                setOtpSent(true);
+            } else {
+                setMessage(data.error || 'Invalid OTP');
+            }
+        } catch (error) {
+            setMessage('Network error. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async (e) => {
+        e.preventDefault();
+        
+        if (!otp) {
+            setMessage('Please enter the OTP');
+            return;
+        }
+
+        setIsLoading(true);
+        setMessage('');
+
+        try {
+            const response = await fetch('/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone_number: phoneNumber, otp })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                setMessage('Login successful!');
+                setTimeout(() => onLoginSuccess(data.user), 1000);
+            } else {
+                setMessage(data.error || 'Invalid OTP');
+            }
+        } catch (error) {
+            setMessage('Network error. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl fontBuilder: The apply model made the following changes to the file:
+
+```
+            <div className="text-center">
+                <button onClick={onBackToLogin} className="text-backToLogin} className="text-red-500 hover:text-red-600">
+                    Back to Login
+                </button>
+                    Back to Login
+                </button>
+            </div>
         </div>
     );
 };

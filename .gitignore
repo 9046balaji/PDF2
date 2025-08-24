@@ -34,6 +34,8 @@ venv.bak/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -86,3 +88,12 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+
+# Local development files
+.cursorrules
+improvemets.txt
+install-pyenv-win.ps1
+test_auth_flow.py
+test_backend.py
+to_do.txt
+train_classifier.py
