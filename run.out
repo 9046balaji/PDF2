@@ -1,0 +1,15 @@
+WARNING:root:Twilio or Redis not available - OTP functionality disabled
+WARNING:root:Flask-RESTX not available - API documentation disabled
+WARNING:root:OpenTelemetry not available - observability disabled
+Starting PDF Tool server with SQLite...
+Initializing database...
+Database tables created successfully!
+Access the frontend at: http://localhost:5000
+Press Ctrl+C to stop the server
+ * Serving Flask app 'app'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.30.0.2:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
