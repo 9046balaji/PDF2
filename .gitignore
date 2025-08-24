@@ -96,4 +96,5 @@ install-pyenv-win.ps1
 test_auth_flow.py
 test_backend.py
 to_do.txt
-train_classifier.py
+train_classifier.pyREADMI_FILES/
+uploads/
