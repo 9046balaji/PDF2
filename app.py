@@ -46,7 +46,7 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+    from opentelemetry.sdk.resources import Resource as OTResource, SERVICE_NAME
     TELEMETRY_AVAILABLE = True
 except ImportError:
     TELEMETRY_AVAILABLE = False
@@ -1407,7 +1407,7 @@ def import_drive_file():
 
 @app.route('/api/task-status/<task_id>', methods=['GET'])
 @login_required
-def task_status(task_id):
+def celery_task_status(task_id):
     """Get the status of a Celery task"""
     try:
         from celery.result import AsyncResult
@@ -1492,7 +1492,7 @@ if RESTX_AVAILABLE:
 if TELEMETRY_AVAILABLE:
     try:
         # Set up resource
-        resource = Resource(attributes={SERVICE_NAME: "pdf-tool-app"})
+        resource = OTResource(attributes={SERVICE_NAME: "pdf-tool-app"})
         
         # Tracer provider
         trace.set_tracer_provider(TracerProvider(resource=resource))
