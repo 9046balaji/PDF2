@@ -88,6 +88,45 @@ A comprehensive, enterprise-grade PDF processing application with AI-powered fea
 - **Redis Backend**: Task queue and caching
 - **ML Models**: Document classification and analysis
 
+## 📁 **Repository Structure**
+
+```
+PDF2/
+├── 🚀 **CORE APPLICATION**
+│   ├── app.py                    # Main Flask application (1,872 lines)
+│   ├── pdf_processor.py          # PDF processing engine (1,055 lines)
+│   ├── tasks.py                  # Background tasks for AI/ML (279 lines)
+│   ├── advanced/advanced_api.py  # Advanced API endpoints (105 lines)
+│   └── requirements.txt          # Core dependencies (51 lines)
+│
+├── 🌐 **FRONTEND**
+│   └── static/
+│       ├── index.html           # Main HTML page (23 lines)
+│       ├── app.js              # React frontend (2,505 lines)
+│       └── favicon.ico         # Website icon
+│
+├── 📚 **DOCUMENTATION**
+│   ├── README.md               # Main documentation (this file)
+│   └── LICENSE                 # MIT License
+│
+└── 📁 **RUNTIME DIRECTORIES** (auto-created)
+    ├── uploads/                # User uploaded files (ignored by git)
+    ├── processed/              # Generated files (ignored by git)
+    └── instance/               # Database and runtime data (ignored by git)
+```
+
+### **Files Tracked by Git**
+- **Core Application**: Flask backend, PDF processing engine, background tasks
+- **Frontend**: React application with authentication and file management
+- **Documentation**: README and license files
+- **Configuration**: `.gitignore` and dependencies
+
+### **Files Ignored by Git**
+- **Sensitive Data**: `BIN/` folder contains environment files and session data
+- **Runtime Files**: `uploads/`, `processed/`, `instance/` directories
+- **Development Files**: Virtual environments, logs, temporary files
+- **Non-Essential**: Standalone tools, enhanced dependencies, Docker files
+
 ## 🧪 Quickstart (SQLite / Dev)
 ```bash
 # Create and activate venv
