@@ -16,17 +16,7 @@
     <!-- This is the root element where our React app will be mounted -->
     <div id="root"></div>
 
-    <!-- Link to your enhanced React app with authentication -->
-               <script type="text/babel" src="app.js"></script>
-
-    <!-- Code to render the React App into the 'root' div -->
-    <script type="text/babel">
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
-    </script>
+    <!-- Load the React app (compiled in-browser via Babel) and mount it -->
+    <script type="text/babel" data-presets="react,env" src="app.js?v=1"></script>
   </body>
 </html>

@@ -23,6 +23,7 @@ MANIFEST
 
 # Virtual Environment
 venv/
+venv312/
 env/
 ENV/
 env.bak/
@@ -56,6 +57,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+.run_log.txt
 
 # Temporary files
 *.tmp
@@ -67,16 +69,41 @@ logs/
 *.sqlite3
 
 # Uploads and processed files (these will be created at runtime)
-uploads/*
-!uploads/.gitkeep
-processed/*
-!processed/.gitkeep
+uploads/
+processed/
 
-# Bin folder (contains old/deleted files)
-bin/*
+# Instance folder (contains database and runtime data)
+instance/
 
-# Docker
-.dockerignore
+# Non-required files (not used in current application)
+# Standalone tools and utilities
+sdk.py
+pdf_tool.py
+train_classifier.py
+
+# Enhanced dependencies (not currently used)
+requirements-enhanced.txt
+
+# Documentation files (keep only main README.md)
+READMI_FILES/
+*.md
+!README.md
+!LICENSE
+
+# Development and testing files
+.cursorrules
+error_fixing.txt
+new_operations.txt
+test_backend.py
+test_auth_flow.py
+install-pyenv-win.ps1
+
+# Docker files (not currently used)
+Dockerfile
+docker-compose*.yml
+
+# BIN folder (contains old/deleted files)
+BIN/
 
 # Testing
 .coverage
@@ -89,12 +116,9 @@ coverage.xml
 *.cover
 .hypothesis/
 
+# Docker
+.dockerignore
+
 # Local development files
-.cursorrules
 improvemets.txt
-install-pyenv-win.ps1
-test_auth_flow.py
-test_backend.py
 to_do.txt
-train_classifier.pyREADMI_FILES/
-uploads/

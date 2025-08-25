@@ -4,7 +4,7 @@ import math
 import time
 import logging
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify, send_file, abort, render_template_string
+from flask import Flask, request, jsonify, send_file, abort, render_template_string, url_for, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_mail import Mail, Message
@@ -14,6 +14,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from pypdf import PdfReader, PdfWriter
 import pikepdf
 import io
+import traceback
 import tempfile
 
 # Twilio and Redis for OTP
@@ -52,12 +53,19 @@ except ImportError:
     TELEMETRY_AVAILABLE = False
     logging.warning("OpenTelemetry not available - observability disabled")
 
+# Import the new PDF processor
+from pdf_processor import PDFProcessor, PDFValidationError, PDFOperationError
+
+# Initialize PDF processor
+pdf_processor = PDFProcessor()
+
 # --- App Initialization ---
 app = Flask(__name__, static_folder='static', static_url_path='')
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'CHANGE_THIS_IN_PRODUCTION_USE_ENV_VAR')
 # Use SQLite for development - no external database required
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///pdf_tool.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH_MB', '50')) * 1024 * 1024  # default 50MB
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -168,6 +176,40 @@ app.task_timestamps = {}
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+@login_manager.unauthorized_handler
+def handle_unauthorized():
+    """Return JSON 401 for API/SPA requests; otherwise redirect to login page."""
+    api_like_paths = (
+        '/api', '/task', '/files', '/process', '/history', '/download', '/profile',
+        '/enhanced', '/advanced'
+    )
+    wants_json = (
+        request.is_json or
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html'] or
+        any(request.path.startswith(p) for p in api_like_paths)
+    )
+    if wants_json:
+        return jsonify({'error': 'Unauthorized'}), 401
+    # Fallback: serve SPA login page
+    return app.send_static_file('index.html')
+
+@app.route('/auth/check')
+def auth_check():
+    """Lightweight endpoint to check authentication status without redirect."""
+    if current_user.is_authenticated:
+        return jsonify({
+            'authenticated': True,
+            'user': {
+                'id': current_user.id,
+                'username': current_user.username,
+                'email': current_user.email,
+                'phone_number': current_user.phone_number,
+                'created_at': current_user.created_at.isoformat()
+            }
+        }), 200
+    return jsonify({'authenticated': False}), 401
+
 def cleanup_old_tasks():
     """Remove tasks older than 1 hour"""
     current_time = time.time()
@@ -235,7 +277,7 @@ def register():
         return jsonify({'message': 'User registered successfully'}), 201
         
     except Exception as e:
-        print(f"Registration error occurred")  # Don't expose error details
+        logging.exception("Registration error occurred")
         db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -266,7 +308,7 @@ def login():
         return jsonify({'error': 'Invalid username or password'}), 401
         
     except Exception as e:
-        print(f"Login error occurred")  # Don't expose error details
+        logging.exception("Login error occurred")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/logout')
@@ -305,7 +347,7 @@ def request_password_reset():
             return jsonify({'message': 'If the email exists, a password reset link has been sent'}), 200
         
         # Generate reset token
-        token = serializer.dumps(user.email, salt=os.environ.get('PASSWORD_RESET_SALT', 'default-salt-for-dev'))
+        token = serializer.dumps(user.email, salt=os.environ.get('PASSWORD_RESET_SALT', 'CHANGE_THIS_IN_PRODUCTION_USE_ENV_VAR'))
         
         # Create reset URL
         reset_url = f"{request.host_url}reset-password/{token}"
@@ -346,7 +388,7 @@ def reset_password(token):
             return jsonify({'error': 'New password must be at least 6 characters long'}), 400
         
         try:
-            email = serializer.loads(token, salt=os.environ.get('PASSWORD_RESET_SALT', 'default-salt-for-dev'), max_age=3600)  # 1 hour expiry
+            email = serializer.loads(token, salt=os.environ.get('PASSWORD_RESET_SALT', 'CHANGE_THIS_IN_PRODUCTION_USE_ENV_VAR'), max_age=3600)  # 1 hour expiry
         except SignatureExpired:
             return jsonify({'error': 'Password reset link has expired'}), 400
         except BadSignature:
@@ -464,10 +506,12 @@ def index():
 @login_required
 def upload_file():
     if 'file' not in request.files:
+        logging.warning("Upload failed: 'file' field missing in form-data")
         abort(400, "No file part")
     
     file = request.files['file']
     if file.filename == '':
+        logging.warning("Upload failed: empty filename provided")
         abort(400, "No selected file")
     
     if file and allowed_file(file.filename):
@@ -502,7 +546,8 @@ def upload_file():
             'id': file_record.id
         })
     
-    abort(400, "Invalid file type")
+    logging.warning("Upload failed: invalid file type for '%s'", file.filename)
+    abort(400, "Invalid file type. Only .pdf is allowed")
 
 @app.route('/files')
 @login_required
@@ -1151,7 +1196,7 @@ def download_file():
     if not os.path.exists(file_path):
         abort(404, "File not found")
     
-        return send_file(
+    return send_file(
         file_path,
         as_attachment=True,
         download_name=key
@@ -1382,7 +1427,7 @@ def list_drive_files():
         files = results.get('files', [])
         return jsonify(files), 200
     except Exception as e:
-        logger.error(f"List drive error: {e}\n{traceback.format_exc()}")
+        logging.error(f"List drive error: {e}\n{traceback.format_exc()}")
         return jsonify({"error": "Failed to list files"}), 500
 
 @app.route('/import-drive-file', methods=['POST'])
@@ -1398,7 +1443,7 @@ def import_drive_file():
         task = import_from_drive.delay(current_user.id, drive_file_id)
         return jsonify({"task_id": task.id}), 202
     except Exception as e:
-        logger.error(f"Import drive file error: {e}\n{traceback.format_exc()}")
+        logging.error(f"Import drive file error: {e}\n{traceback.format_exc()}")
         return jsonify({"error": "Failed to import file"}), 500
 
 # ============================================================================
@@ -1407,7 +1452,7 @@ def import_drive_file():
 
 @app.route('/api/task-status/<task_id>', methods=['GET'])
 @login_required
-def task_status(task_id):
+def api_task_status(task_id):
     """Get the status of a Celery task"""
     try:
         from celery.result import AsyncResult
@@ -1484,6 +1529,283 @@ if RESTX_AVAILABLE:
     
     # Register the API blueprint
     app.register_blueprint(api_bp, url_prefix='/api/v1')
+
+# ============================================================================
+# ENHANCED PDF PROCESSING ENDPOINTS
+# ============================================================================
+
+@app.route('/enhanced/merge', methods=['POST'])
+@login_required
+def enhanced_merge():
+    """Enhanced PDF merge with validation - expects file_keys in JSON"""
+    try:
+        data = request.get_json()
+        file_keys = data.get('file_keys', [])
+        
+        if not file_keys or len(file_keys) < 2:
+            return jsonify({"error": "At least 2 PDF files required"}), 400
+        
+        # Resolve file paths from file_keys
+        file_paths = []
+        for file_key in file_keys:
+            file_record = FileRecord.query.filter_by(filename=file_key, user_id=current_user.id).first()
+            if not file_record:
+                return jsonify({"error": f"File not found: {file_key}"}), 404
+            file_path = os.path.join(UPLOAD_FOLDER, file_record.filename)
+            if not os.path.exists(file_path):
+                return jsonify({"error": f"File not found on disk: {file_key}"}), 404
+            file_paths.append(file_path)
+        
+        # Process with PDFProcessor
+        output_filename = f"merged_{uuid.uuid4().hex}.pdf"
+        output_path = os.path.join(PROCESSED_FOLDER, output_filename)
+        result = pdf_processor.merge_pdfs(file_paths, output_path)
+        
+        return jsonify({
+            "success": True, 
+            "result": {
+                "key": output_filename,
+                "filename": output_filename,
+                "size": os.path.getsize(output_path)
+            }
+        })
+    except Exception as e:
+        logging.error(f"Enhanced merge error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/split', methods=['POST'])
+@login_required
+def enhanced_split():
+    """Enhanced PDF split with validation - expects file_key in JSON"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        
+        if not file_key:
+            return jsonify({"error": "File key required"}), 400
+        
+        # Resolve file path from file_key
+        file_record = FileRecord.query.filter_by(filename=file_key, user_id=current_user.id).first()
+        if not file_record:
+            return jsonify({"error": "File not found"}), 404
+        file_path = os.path.join(UPLOAD_FOLDER, file_record.filename)
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File not found on disk"}), 404
+        
+        # Process with PDFProcessor
+        output_dir = os.path.join(PROCESSED_FOLDER, f"split_{uuid.uuid4().hex}")
+        result = pdf_processor.split_pdf(file_path, output_dir)
+        
+        # Return first split file for now
+        split_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
+        if split_files:
+            first_file = split_files[0]
+            first_path = os.path.join(output_dir, first_file)
+            return jsonify({
+                "success": True,
+                "result": {
+                    "key": first_file,
+                    "filename": first_file,
+                    "size": os.path.getsize(first_path)
+                }
+            })
+        else:
+            return jsonify({"error": "No files created during split"}), 500
+    except Exception as e:
+        logging.error(f"Enhanced split error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/convert', methods=['POST'])
+@login_required
+def enhanced_convert():
+    """Enhanced document conversion with validation - expects file_key in JSON"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        target_format = data.get('target_format')
+        
+        if not file_key or not target_format:
+            return jsonify({"error": "File key and target format required"}), 400
+        
+        # Resolve file path from file_key
+        file_record = FileRecord.query.filter_by(filename=file_key, user_id=current_user.id).first()
+        if not file_record:
+            return jsonify({"error": "File not found"}), 404
+        file_path = os.path.join(UPLOAD_FOLDER, file_record.filename)
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File not found on disk"}), 404
+        
+        # Process with PDFProcessor based on target format
+        output_filename = f"converted_{uuid.uuid4().hex}.{target_format}"
+        output_path = os.path.join(PROCESSED_FOLDER, output_filename)
+        
+        if target_format == 'pptx':
+            result = pdf_processor.pdf_to_powerpoint(file_path, output_path)
+        else:
+            result = pdf_processor.unsupported_feature(f"Conversion to {target_format}")
+            return jsonify({"error": result}), 400
+        
+        return jsonify({
+            "success": True,
+            "result": {
+                "key": output_filename,
+                "filename": output_filename,
+                "size": os.path.getsize(output_path)
+            }
+        })
+    except Exception as e:
+        logging.error(f"Enhanced convert error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/workflow', methods=['POST'])
+@login_required
+def enhanced_workflow():
+    """Enhanced workflow execution"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        operations = data.get('operations', [])
+        
+        if not file_key or not operations:
+            return jsonify({"error": "File key and operations required"}), 400
+        
+        # Process with PDFProcessor
+        workflow_ops = []
+        for op in operations:
+            if op == 'rotate_pdf':
+                workflow_ops.append({'operation': 'rotate_pdf', 'params': {'rotation': 90}})
+            elif op == 'watermark_pdf':
+                workflow_ops.append({'operation': 'watermark_pdf', 'params': {'watermark_text': 'Processed'}})
+            elif op == 'compress_pdf':
+                workflow_ops.append({'operation': 'compress_pdf', 'params': {}})
+            elif op == 'add_page_numbers':
+                workflow_ops.append({'operation': 'add_page_numbers', 'params': {}})
+            elif op == 'protect_pdf':
+                workflow_ops.append({'operation': 'protect_pdf', 'params': {'user_password': 'password'}})
+        
+        result = pdf_processor.execute_workflow(workflow_ops)
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"Enhanced workflow error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/bulk', methods=['POST'])
+@login_required
+def enhanced_bulk():
+    """Enhanced bulk processing"""
+    try:
+        data = request.get_json()
+        file_keys = data.get('file_keys', [])
+        operation = data.get('operation')
+        
+        if not file_keys or not operation:
+            return jsonify({"error": "File keys and operation required"}), 400
+        
+        # Process with PDFProcessor
+        result = pdf_processor.bulk_process(operation, file_keys, f"bulk_{int(time.time())}")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"Enhanced bulk error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/ipynb-to-pdf', methods=['POST'])
+@login_required
+def enhanced_ipynb_to_pdf():
+    """Convert Jupyter notebook to PDF"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        
+        if not file_key:
+            return jsonify({"error": "File key required"}), 400
+        
+        # Process with PDFProcessor
+        result = pdf_processor.ipynb_to_pdf(file_key, f"converted_{int(time.time())}.pdf")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"IPYNB to PDF error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/ipynb-to-docx', methods=['POST'])
+@login_required
+def enhanced_ipynb_to_docx():
+    """Convert Jupyter notebook to Word document"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        
+        if not file_key:
+            return jsonify({"error": "File key required"}), 400
+        
+        # Process with PDFProcessor
+        result = pdf_processor.ipynb_to_docx(file_key, f"converted_{int(time.time())}.docx")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"IPYNB to DOCX error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/py-to-ipynb', methods=['POST'])
+@login_required
+def enhanced_py_to_ipynb():
+    """Convert Python file to Jupyter notebook"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        
+        if not file_key:
+            return jsonify({"error": "File key required"}), 400
+        
+        # Process with PDFProcessor
+        result = pdf_processor.py_to_ipynb(file_key, f"converted_{int(time.time())}.ipynb")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"Python to IPYNB error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/py-to-pdf', methods=['POST'])
+@login_required
+def enhanced_py_to_pdf():
+    """Convert Python file to PDF"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        
+        if not file_key:
+            return jsonify({"error": "File key required"}), 400
+        
+        # Process with PDFProcessor
+        result = pdf_processor.py_to_pdf(file_key, f"converted_{int(time.time())}.pdf")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"Python to PDF error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/enhanced/py-to-docx', methods=['POST'])
+@login_required
+def enhanced_py_to_docx():
+    """Convert Python file to Word document"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        
+        if not file_key:
+            return jsonify({"error": "File key required"}), 400
+        
+        # Process with PDFProcessor
+        result = pdf_processor.py_to_docx(file_key, f"converted_{int(time.time())}.docx")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        logging.error(f"Python to DOCX error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ============================================================================
+# ADVANCED API BLUEPRINT (AI endpoints under /advanced)
+# ============================================================================
+try:
+    from advanced.advanced_api import advanced_bp
+    app.register_blueprint(advanced_bp, url_prefix='/advanced')
+except Exception:
+    logging.warning("Advanced API blueprint not available")
 
 # ============================================================================
 # OBSERVABILITY SETUP

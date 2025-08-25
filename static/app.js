@@ -2,40 +2,1025 @@
 
 const API_BASE_URL = window.location.origin;
 
-// Tool Configuration
-const toolConfig = {
-    'merge': {
-        title: 'Merge PDFs',
-        description: 'Combine multiple PDF files into one document',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
-        allowMultiple: true,
-        options: []
-    },
-    'split': {
-        title: 'Split PDF',
-        description: 'Split a PDF into multiple files by pages',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
-        allowMultiple: false,
+// Enhanced PDF Processing Tools
+const ENHANCED_TOOLS = [
+    {
+        id: 'enhanced_merge',
+        name: 'Enhanced Merge PDFs',
+        description: 'Merge multiple PDFs with advanced validation',
+        icon: '📄',
+        category: 'enhanced',
         options: [
             {
-                id: 'pages',
-                label: 'Page Range (e.g., 1-3,5,7-9)',
+                type: 'multiselect',
+                name: 'file_keys',
+                label: 'Select PDFs to merge',
+                required: true,
+                placeholder: 'Choose multiple PDF files'
+            }
+        ]
+    },
+    {
+        id: 'enhanced_split',
+        name: 'Enhanced Split PDF',
+        description: 'Split PDF into individual pages with validation',
+        icon: '✂️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to split',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'enhanced_convert',
+        name: 'Enhanced Convert',
+        description: 'Convert between document formats with validation',
+        icon: '🔄',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select file to convert',
+                required: true,
+                placeholder: 'Choose a file'
+            },
+            {
+                type: 'select',
+                name: 'target_format',
+                label: 'Target format',
+                required: true,
+                options: [
+                    { value: 'pdf', label: 'PDF' },
+                    { value: 'pptx', label: 'PowerPoint' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'enhanced_workflow',
+        name: 'Enhanced Workflow',
+        description: 'Execute complex PDF processing workflows',
+        icon: '⚙️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF for workflow',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'multiselect',
+                name: 'operations',
+                label: 'Select operations',
+                required: true,
+                options: [
+                    { value: 'rotate_pdf', label: 'Rotate PDF' },
+                    { value: 'watermark_pdf', label: 'Add Watermark' },
+                    { value: 'compress_pdf', label: 'Compress PDF' },
+                    { value: 'add_page_numbers', label: 'Add Page Numbers' },
+                    { value: 'protect_pdf', label: 'Protect PDF' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'enhanced_bulk',
+        name: 'Enhanced Bulk Processing',
+        description: 'Process multiple files with the same operation',
+        icon: '📦',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'multiselect',
+                name: 'file_keys',
+                label: 'Select files for bulk processing',
+                required: true,
+                placeholder: 'Choose multiple files'
+            },
+            {
+                type: 'select',
+                name: 'operation',
+                label: 'Select operation',
+                required: true,
+                options: [
+                    { value: 'merge_pdfs', label: 'Merge PDFs' },
+                    { value: 'split_pdf', label: 'Split PDFs' },
+                    { value: 'compress_pdf', label: 'Compress PDFs' },
+                    { value: 'rotate_pdf', label: 'Rotate PDFs' },
+                    { value: 'watermark_pdf', label: 'Add Watermarks' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'rotate_pdf',
+        name: 'Rotate PDF',
+        description: 'Rotate PDF pages by specified degrees',
+        icon: '🔄',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to rotate',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'select',
+                name: 'rotation',
+                label: 'Rotation angle',
+                required: true,
+                options: [
+                    { value: 90, label: '90° Clockwise' },
+                    { value: 180, label: '180°' },
+                    { value: 270, label: '270° Clockwise' }
+                ]
+            },
+            {
+                type: 'multiselect',
+                name: 'pages',
+                label: 'Pages to rotate (leave empty for all)',
+                required: false,
+                placeholder: 'Select specific pages'
+            }
+        ]
+    },
+    {
+        id: 'compress_pdf',
+        name: 'Compress PDF',
+        description: 'Reduce PDF file size with basic compression',
+        icon: '🗜️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to compress',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'watermark_pdf',
+        name: 'Add Watermark',
+        description: 'Add text watermark to PDF pages',
+        icon: '💧',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF for watermark',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
                 type: 'text',
+                name: 'watermark_text',
+                label: 'Watermark text',
+                required: true,
+                placeholder: 'Enter watermark text'
+            },
+            {
+                type: 'number',
+                name: 'opacity',
+                label: 'Opacity (0.1 - 1.0)',
+                required: false,
+                min: 0.1,
+                max: 1.0,
+                step: 0.1,
+                default: 0.3
+            },
+            {
+                type: 'number',
+                name: 'font_size',
+                label: 'Font size',
+                required: false,
+                min: 8,
+                max: 72,
+                default: 36
+            }
+        ]
+    },
+    {
+        id: 'protect_pdf',
+        name: 'Protect PDF',
+        description: 'Encrypt PDF with password protection',
+        icon: '🔒',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to protect',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'password',
+                name: 'user_password',
+                label: 'User password',
+                required: true,
+                placeholder: 'Enter password for users'
+            },
+            {
+                type: 'password',
+                name: 'owner_password',
+                label: 'Owner password (optional)',
+                required: false,
+                placeholder: 'Enter password for owners'
+            }
+        ]
+    },
+    {
+        id: 'unlock_pdf',
+        name: 'Unlock PDF',
+        description: 'Remove password protection from PDF',
+        icon: '🔓',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to unlock',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'password',
+                name: 'password',
+                label: 'Current password',
+                required: true,
+                placeholder: 'Enter current password'
+            }
+        ]
+    },
+    {
+        id: 'add_page_numbers',
+        name: 'Add Page Numbers',
+        description: 'Add page numbers to PDF',
+        icon: '🔢',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF for page numbers',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'number',
+                name: 'start',
+                label: 'Starting page number',
+                required: false,
+                min: 1,
+                default: 1
+            },
+            {
+                type: 'select',
+                name: 'position',
+                label: 'Page number position',
+                required: false,
+                options: [
+                    { value: 'bottom-right', label: 'Bottom Right' },
+                    { value: 'bottom-center', label: 'Bottom Center' }
+                ],
+                default: 'bottom-right'
+            }
+        ]
+    },
+    {
+        id: 'validate_pdf_a',
+        name: 'Validate PDF/A',
+        description: 'Check PDF/A compliance',
+        icon: '✅',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to validate',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'convert_to_pdf_a',
+        name: 'Convert to PDF/A',
+        description: 'Convert PDF to PDF/A format',
+        icon: '📋',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to convert',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'word_to_pdf',
+        name: 'Word to PDF',
+        description: 'Convert Word documents to PDF',
+        icon: '📝',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Word document',
+                required: true,
+                placeholder: 'Choose a .docx file'
+            }
+        ]
+    },
+    {
+        id: 'powerpoint_to_pdf',
+        name: 'PowerPoint to PDF',
+        description: 'Convert PowerPoint presentations to PDF',
+        icon: '📊',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PowerPoint file',
+                required: true,
+                placeholder: 'Choose a .pptx file'
+            }
+        ]
+    },
+    {
+        id: 'excel_to_pdf',
+        name: 'Excel to PDF',
+        description: 'Convert Excel spreadsheets to PDF',
+        icon: '📈',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Excel file',
+                required: true,
+                placeholder: 'Choose a .xlsx or .xls file'
+            }
+        ]
+    },
+    {
+        id: 'html_to_pdf',
+        name: 'HTML to PDF',
+        description: 'Convert HTML files to PDF',
+        icon: '🌐',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select HTML file',
+                required: true,
+                placeholder: 'Choose a .html or .htm file'
+            }
+        ]
+    },
+    {
+        id: 'pdf_to_powerpoint',
+        name: 'PDF to PowerPoint',
+        description: 'Convert PDF to PowerPoint presentation',
+        icon: '📊',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to convert',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'extract_images',
+        name: 'Extract Images',
+        description: 'Extract embedded images from PDF',
+        icon: '🖼️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF for image extraction',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'ocr_pdf_images',
+        name: 'OCR PDF Images',
+        description: 'Perform OCR on embedded images in PDF',
+        icon: '👁️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF for OCR',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'repair_pdf',
+        name: 'Repair PDF',
+        description: 'Attempt to repair corrupted PDF files',
+        icon: '🔧',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to repair',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            }
+        ]
+    },
+    {
+        id: 'sign_pdf',
+        name: 'Sign PDF',
+        description: 'Add digital signature to PDF',
+        icon: '✍️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to sign',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'file',
+                name: 'private_key_path',
+                label: 'Private key file',
+                required: true,
+                accept: '.pem,.key'
+            },
+            {
+                type: 'number',
+                name: 'page_num',
+                label: 'Page number for signature',
+                required: true,
+                min: 1,
+                default: 1
+            },
+            {
+                type: 'number',
+                name: 'x',
+                label: 'X coordinate',
+                required: true,
+                min: 0,
+                max: 8.5,
+                step: 0.1,
+                default: 1
+            },
+            {
+                type: 'number',
+                name: 'y',
+                label: 'Y coordinate',
+                required: true,
+                min: 0,
+                max: 11,
+                step: 0.1,
+                default: 1
+            }
+        ]
+    },
+    {
+        id: 'compare_pdfs',
+        name: 'Compare PDFs',
+        description: 'Compare two PDFs and show differences',
+        icon: '🔍',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key1',
+                label: 'First PDF',
+                required: true,
+                placeholder: 'Choose first PDF file'
+            },
+            {
+                type: 'select',
+                name: 'file_key2',
+                label: 'Second PDF',
+                required: true,
+                placeholder: 'Choose second PDF file'
+            }
+        ]
+    },
+    {
+        id: 'edit_pdf_add_text',
+        name: 'Add Text to PDF',
+        description: 'Add text overlay to specific PDF pages',
+        icon: '✏️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to edit',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'number',
+                name: 'page_num',
+                label: 'Page number',
+                required: true,
+                min: 1,
+                default: 1
+            },
+            {
+                type: 'text',
+                name: 'text',
+                label: 'Text to add',
+                required: true,
+                placeholder: 'Enter text to add'
+            },
+            {
+                type: 'number',
+                name: 'x',
+                label: 'X coordinate (inches)',
+                required: true,
+                min: 0,
+                max: 8.5,
+                step: 0.1,
+                default: 1
+            },
+            {
+                type: 'number',
+                name: 'y',
+                label: 'Y coordinate (inches)',
+                required: true,
+                min: 0,
+                max: 11,
+                step: 0.1,
+                default: 1
+            },
+            {
+                type: 'number',
+                name: 'font_size',
+                label: 'Font size',
+                required: false,
+                min: 8,
+                max: 72,
+                default: 12
+            }
+        ]
+    },
+    {
+        id: 'fill_pdf_forms',
+        name: 'Fill PDF Forms',
+        description: 'Fill form fields in PDF documents',
+        icon: '📋',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF with forms',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'json',
+                name: 'field_data',
+                label: 'Form field data (JSON)',
+                required: true,
+                placeholder: '{"field_name": "value"}'
+            }
+        ]
+    },
+    {
+        id: 'annotate_pdf',
+        name: 'Annotate PDF',
+        description: 'Add annotations to PDF pages',
+        icon: '📝',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to annotate',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'number',
+                name: 'page_num',
+                label: 'Page number',
+                required: true,
+                min: 1,
+                default: 1
+            },
+            {
+                type: 'select',
+                name: 'annotation_type',
+                label: 'Annotation type',
+                required: true,
+                options: [
+                    { value: 'highlight', label: 'Highlight' },
+                    { value: 'line', label: 'Line' }
+                ]
+            },
+            {
+                type: 'json',
+                name: 'params',
+                label: 'Annotation parameters (JSON)',
+                required: true,
+                placeholder: '{"x1": 0, "y1": 0, "x2": 1, "y2": 1, "color": "yellow"}'
+            }
+        ]
+    },
+    {
+        id: 'redact_pdf',
+        name: 'Redact PDF',
+        description: 'Redact sensitive information from PDF',
+        icon: '🚫',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to redact',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'number',
+                name: 'page_num',
+                label: 'Page number',
+                required: true,
+                min: 1,
+                default: 1
+            },
+            {
+                type: 'json',
+                name: 'redactions',
+                label: 'Redaction areas (JSON)',
+                required: true,
+                placeholder: '[[x1, y1, x2, y2], [x1, y1, x2, y2]]'
+            }
+        ]
+    },
+    {
+        id: 'extract_text',
+        name: 'Extract Text',
+        description: 'Extract text content from PDF',
+        icon: '📄',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF for text extraction',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'text',
+                name: 'output_path',
+                label: 'Output text file (optional)',
+                required: false,
+                placeholder: 'Leave empty to return text directly'
+            }
+        ]
+    },
+    {
+        id: 'organize_pdf',
+        name: 'Organize PDF',
+        description: 'Reorganize PDF pages in custom order',
+        icon: '📚',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF to organize',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'json',
+                name: 'page_order',
+                label: 'Page order (JSON array)',
+                required: true,
+                placeholder: '[1, 3, 2, 4]'
+            }
+        ]
+    },
+    {
+        id: 'remove_pages',
+        name: 'Remove Pages',
+        description: 'Remove specific pages from PDF',
+        icon: '🗑️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'json',
+                name: 'pages_to_remove',
+                label: 'Pages to remove (JSON array)',
+                required: true,
+                placeholder: '[2, 5, 8]'
+            }
+        ]
+    },
+    {
+        id: 'extract_pages',
+        name: 'Extract Pages',
+        description: 'Extract specific pages from PDF',
+        icon: '📄',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select PDF',
+                required: true,
+                placeholder: 'Choose a PDF file'
+            },
+            {
+                type: 'json',
+                name: 'pages',
+                label: 'Pages to extract (JSON array)',
+                required: true,
+                placeholder: '[1, 3, 5]'
+            }
+        ]
+    },
+    {
+        id: 'compress_image',
+        name: 'Compress Image',
+        description: 'Compress image files',
+        icon: '🗜️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select image to compress',
+                required: true,
+                placeholder: 'Choose an image file'
+            },
+            {
+                type: 'number',
+                name: 'quality',
+                label: 'Compression quality (1-100)',
+                required: false,
+                min: 1,
+                max: 100,
+                default: 80
+            }
+        ]
+    },
+    {
+        id: 'resize_image',
+        name: 'Resize Image',
+        description: 'Resize image to specified dimensions',
+        icon: '📏',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select image to resize',
+                required: true,
+                placeholder: 'Choose an image file'
+            },
+            {
+                type: 'number',
+                name: 'width',
+                label: 'New width (pixels)',
+                required: true,
+                min: 1,
+                default: 800
+            },
+            {
+                type: 'number',
+                name: 'height',
+                label: 'New height (pixels)',
+                required: true,
+                min: 1,
+                default: 600
+            }
+        ]
+    },
+    {
+        id: 'crop_image',
+        name: 'Crop Image',
+        description: 'Crop image to specified area',
+        icon: '✂️',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select image to crop',
+                required: true,
+                placeholder: 'Choose an image file'
+            },
+            {
+                type: 'json',
+                name: 'box',
+                label: 'Crop box [left, top, right, bottom] (JSON array)',
+                required: true,
+                placeholder: '[100, 100, 500, 400]'
+            }
+        ]
+    },
+    {
+        id: 'convert_image_format',
+        name: 'Convert Image Format',
+        description: 'Convert image to different format',
+        icon: '🔄',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select image to convert',
+                required: true,
+                placeholder: 'Choose an image file'
+            },
+            {
+                type: 'text',
+                name: 'output_path',
+                label: 'Output path with extension',
+                required: true,
+                placeholder: 'output.png'
+            }
+        ]
+    },
+    {
+        id: 'ipynb_to_pdf',
+        name: 'IPYNB to PDF',
+        description: 'Convert Jupyter notebooks to PDF format',
+        icon: '📓',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Jupyter notebook',
+                required: true,
+                placeholder: 'Choose a .ipynb file'
+            }
+        ]
+    },
+    {
+        id: 'ipynb_to_docx',
+        name: 'IPYNB to DOCX',
+        description: 'Convert Jupyter notebooks to Word documents',
+        icon: '📝',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Jupyter notebook',
+                required: true,
+                placeholder: 'Choose a .ipynb file'
+            }
+        ]
+    },
+    {
+        id: 'py_to_ipynb',
+        name: 'Python to IPYNB',
+        description: 'Convert Python files to Jupyter notebooks',
+        icon: '🐍',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Python file',
+                required: true,
+                placeholder: 'Choose a .py file'
+            }
+        ]
+    },
+    {
+        id: 'py_to_pdf',
+        name: 'Python to PDF',
+        description: 'Convert Python files to PDF with syntax highlighting',
+        icon: '📄',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Python file',
+                required: true,
+                placeholder: 'Choose a .py file'
+            }
+        ]
+    },
+    {
+        id: 'ipynb_to_py',
+        name: 'IPYNB to Python',
+        description: 'Extract Python code from Jupyter notebooks',
+        icon: '💻',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Jupyter notebook',
+                required: true,
+                placeholder: 'Choose a .ipynb file'
+            }
+        ]
+    },
+    {
+        id: 'py_to_docx',
+        name: 'Python to DOCX',
+        description: 'Convert Python files to Word documents with syntax highlighting',
+        icon: '📝',
+        category: 'enhanced',
+        options: [
+            {
+                type: 'select',
+                name: 'file_key',
+                label: 'Select Python file',
+                required: true,
+                placeholder: 'Choose a .py file'
+            }
+        ]
+    }
+];
+
+// Core Tools
+const CORE_TOOLS = [
+    {
+        id: 'merge',
+        name: 'Merge PDFs',
+        description: 'Combine multiple PDF files into one document',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
+        category: 'core',
+        options: []
+    },
+    {
+        id: 'split',
+        name: 'Split PDF',
+        description: 'Split a PDF into multiple files by pages',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
+        category: 'core',
+        options: [
+            {
+                type: 'text',
+                name: 'pages',
+                label: 'Page Range (e.g., 1-3,5,7-9)',
+                required: false,
                 placeholder: 'Leave empty to split every page'
             }
         ]
     },
-    'compress': {
-        title: 'Compress PDF',
+    {
+        id: 'compress',
+        name: 'Compress PDF',
         description: 'Reduce PDF file size while maintaining quality',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'quality',
-                label: 'Compression Quality',
                 type: 'select',
-                choices: [
+                name: 'quality',
+                label: 'Compression Quality',
+                required: true,
+                options: [
                     { value: 'low', label: 'Low (smaller file)' },
                     { value: 'medium', label: 'Medium (balanced)' },
                     { value: 'high', label: 'High (better quality)' }
@@ -43,17 +1028,19 @@ const toolConfig = {
             }
         ]
     },
-    'rotate': {
-        title: 'Rotate PDF',
+    {
+        id: 'rotate',
+        name: 'Rotate PDF',
         description: 'Rotate PDF pages by 90, 180, or 270 degrees',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'angle',
-                label: 'Rotation Angle',
                 type: 'select',
-                choices: [
+                name: 'angle',
+                label: 'Rotation Angle',
+                required: true,
+                options: [
                     { value: '90', label: '90° Clockwise' },
                     { value: '180', label: '180°' },
                     { value: '270', label: '270° Clockwise' }
@@ -61,38 +1048,42 @@ const toolConfig = {
             }
         ]
     },
-    // --- NEW ADVANCED FEATURES ---
-    'pdf_to_word': {
-        title: 'PDF to Word',
+    {
+        id: 'pdf_to_word',
+        name: 'PDF to Word',
         description: 'Convert your PDF files to editable DOCX documents',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: []
     },
-    'pdf_to_excel': {
-        title: 'PDF to Excel',
+    {
+        id: 'pdf_to_excel',
+        name: 'PDF to Excel',
         description: 'Extract tables from PDF and convert to Excel spreadsheet',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M8 13V7"/><path d="M12 13V7"/><path d="M16 13V7"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: []
     },
-    'pdf_to_jpg': {
-        title: 'PDF to JPG',
+    {
+        id: 'pdf_to_jpg',
+        name: 'PDF to JPG',
         description: 'Convert PDF pages to high-quality JPG images',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'pages',
-                label: 'Pages to Convert',
                 type: 'text',
+                name: 'pages',
+                label: 'Pages to Convert',
+                required: false,
                 placeholder: 'Leave empty for all pages (e.g., 1,3,5-7)'
             },
             {
-                id: 'dpi',
-                label: 'Image Quality (DPI)',
                 type: 'select',
-                choices: [
+                name: 'dpi',
+                label: 'Image Quality (DPI)',
+                required: true,
+                options: [
                     { value: '100', label: '100 DPI (smaller files)' },
                     { value: '150', label: '150 DPI (balanced)' },
                     { value: '300', label: '300 DPI (high quality)' }
@@ -100,51 +1091,58 @@ const toolConfig = {
             }
         ]
     },
-    'protect': {
-        title: 'Protect PDF',
+    {
+        id: 'protect',
+        name: 'Protect PDF',
         description: 'Add password protection and encrypt your PDF file',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'password',
-                label: 'Set Password',
                 type: 'password',
+                name: 'password',
+                label: 'Set Password',
+                required: true,
                 placeholder: 'Enter your password'
             }
         ]
     },
-    'unlock': {
-        title: 'Unlock PDF',
+    {
+        id: 'unlock',
+        name: 'Unlock PDF',
         description: 'Remove password protection from encrypted PDFs',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path><path d="M12 11v6"/><path d="M12 11l-2-2"/><path d="M12 11l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'password',
-                label: 'PDF Password',
                 type: 'password',
+                name: 'password',
+                label: 'PDF Password',
+                required: true,
                 placeholder: 'Enter the PDF password'
             }
         ]
     },
-    'watermark': {
-        title: 'Add Watermark',
+    {
+        id: 'watermark',
+        name: 'Add Watermark',
         description: 'Stamp text or image watermarks over your PDF',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'text',
-                label: 'Watermark Text',
                 type: 'text',
+                name: 'text',
+                label: 'Watermark Text',
+                required: true,
                 placeholder: 'e.g., CONFIDENTIAL, DRAFT, etc.'
             },
             {
-                id: 'opacity',
+                type: 'number',
+                name: 'opacity',
                 label: 'Opacity Level',
-                type: 'select',
-                choices: [
+                required: true,
+                options: [
                     { value: '0.1', label: 'Very Light (10%)' },
                     { value: '0.3', label: 'Light (30%)' },
                     { value: '0.5', label: 'Medium (50%)' },
@@ -153,23 +1151,26 @@ const toolConfig = {
             }
         ]
     },
-    'page_numbers': {
-        title: 'Add Page Numbers',
+    {
+        id: 'page_numbers',
+        name: 'Add Page Numbers',
         description: 'Automatically number all pages in your PDF',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'start',
-                label: 'Starting Number',
                 type: 'number',
+                name: 'start',
+                label: 'Starting Number',
+                required: false,
                 placeholder: '1'
             },
             {
-                id: 'position',
-                label: 'Number Position',
                 type: 'select',
-                choices: [
+                name: 'position',
+                label: 'Number Position',
+                required: false,
+                options: [
                     { value: 'bottom-right', label: 'Bottom Right' },
                     { value: 'bottom-center', label: 'Bottom Center' },
                     { value: 'bottom-left', label: 'Bottom Left' },
@@ -180,67 +1181,76 @@ const toolConfig = {
             }
         ]
     },
-    'header_footer': {
-        title: 'Add Headers & Footers',
+    {
+        id: 'header_footer',
+        name: 'Add Headers & Footers',
         description: 'Insert custom headers and footers on every page',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'core',
         options: [
             {
-                id: 'header',
-                label: 'Header Text',
                 type: 'text',
+                name: 'header',
+                label: 'Header Text',
+                required: false,
                 placeholder: 'e.g., Company Name, Document Title'
             },
             {
-                id: 'footer',
-                label: 'Footer Text',
                 type: 'text',
+                name: 'footer',
+                label: 'Footer Text',
+                required: false,
                 placeholder: 'e.g., Page X of Y, Date, Copyright'
             }
         ]
     },
     // AI-Powered Document Intelligence
-    'chat_pdf': {
-        title: 'Chat with PDF',
+    {
+        id: 'chat_pdf',
+        name: 'Chat with PDF',
         description: 'Ask questions about your PDF using AI',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg>,
-        allowMultiple: false,
+        category: 'ai',
         options: [
             {
-                id: 'question',
-                label: 'Your Question',
                 type: 'text',
+                name: 'question',
+                label: 'Your Question',
+                required: true,
                 placeholder: 'Ask anything about your PDF content...'
             }
         ]
     },
-    'analyze_pdf': {
-        title: 'AI Analysis',
+    {
+        id: 'analyze_pdf',
+        name: 'AI Analysis',
         description: 'Get AI-powered summary, entities, and topics',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'ai',
         options: []
     },
-    'classify_document': {
-        title: 'Document Classification',
+    {
+        id: 'classify_document',
+        name: 'Document Classification',
         description: 'Automatically classify document type using ML',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'ai',
         options: []
     },
     // Workflow Automation
-    'workflow': {
-        title: 'Automated Workflow',
+    {
+        id: 'workflow',
+        name: 'Automated Workflow',
         description: 'Chain multiple PDF operations automatically',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/><path d="M12 18v-6"/><path d="M12 12l-2-2"/><path d="M12 12l2-2"/></svg>,
-        allowMultiple: false,
+        category: 'ai',
         options: [
             {
-                id: 'commands',
-                label: 'Workflow Steps',
                 type: 'multiselect',
-                choices: [
+                name: 'commands',
+                label: 'Workflow Steps',
+                required: true,
+                options: [
                     { value: 'unlock', label: 'Unlock PDF' },
                     { value: 'ocr', label: 'Run OCR' },
                     { value: 'compress', label: 'Compress' },
@@ -249,7 +1259,24 @@ const toolConfig = {
             }
         ]
     }
-};
+];
+
+// Define AI tools placeholder (can be populated by advanced builds)
+const AI_TOOLS = [];
+
+// Update the tools array to include enhanced tools
+const ALL_TOOLS = [...CORE_TOOLS, ...AI_TOOLS, ...ENHANCED_TOOLS];
+
+// Safe icon renderer: supports both React elements and plain strings (emoji)
+function renderIcon(icon, size = 48) {
+    if (icon && typeof icon === 'object' && React.isValidElement(icon)) {
+        return React.cloneElement(icon, { width: size, height: size });
+    }
+    if (typeof icon === 'string') {
+        return React.createElement('span', { style: { fontSize: `${size}px`, lineHeight: 1 } }, icon);
+    }
+    return null;
+}
 
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
@@ -291,20 +1318,32 @@ function App() {
     const checkAuthStatus = async () => {
         try {
             console.log('Checking authentication status...');
-            const response = await fetch(`${API_BASE_URL}/profile`);
-            console.log('Auth check response status:', response.status);
-            
+            // First try the lightweight check
+            let response = await fetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
+            console.log('Auth check (/auth/check) status:', response.status);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.authenticated) {
+                    setCurrentUser(data.user);
+                    setIsAuthenticated(true);
+                    return;
+                }
+            }
+            // Fallback to /profile (older servers)
+            response = await fetch(`${API_BASE_URL}/profile`, { credentials: 'include' });
+            console.log('Auth check fallback (/profile) status:', response.status);
             if (response.ok) {
                 const userData = await response.json();
-                console.log('User authenticated:', userData);
                 setCurrentUser(userData);
                 setIsAuthenticated(true);
             } else {
-                console.log('User not authenticated, status:', response.status);
+                setIsAuthenticated(false);
+                setCurrentUser(null);
             }
         } catch (error) {
             console.log('Auth check error:', error);
-            // User not authenticated
+            setIsAuthenticated(false);
+            setCurrentUser(null);
         }
     };
 
@@ -396,7 +1435,7 @@ function App() {
         }
     };
 
-    const currentTool = React.useMemo(() => currentToolId ? toolConfig[currentToolId] : null, [currentToolId]);
+    const currentTool = React.useMemo(() => currentToolId ? ALL_TOOLS.find(t => t.id === currentToolId) : null, [currentToolId]);
 
     // Reset state when tool changes
     const resetState = React.useCallback(() => {
@@ -411,12 +1450,22 @@ function App() {
 
     // Initialize options when tool changes
     React.useEffect(() => {
-        if (currentTool && currentTool.options.length > 0) {
+        if (currentTool && currentTool.options && currentTool.options.length > 0) {
             const defaultOptions = currentTool.options.reduce((acc, opt) => {
-                if (opt.type === 'select' && opt.choices.length > 0) {
-                    acc[opt.id] = opt.choices[0].value;
-                } else {
-                    acc[opt.id] = '';
+                if (opt.type === 'select' && opt.options && opt.options.length > 0) {
+                    acc[opt.name] = opt.options[0].value;
+                } else if (opt.type === 'multiselect') {
+                    acc[opt.name] = [];
+                } else if (opt.type === 'password') {
+                    acc[opt.name] = '';
+                } else if (opt.type === 'text') {
+                    acc[opt.name] = '';
+                } else if (opt.type === 'number') {
+                    acc[opt.name] = opt.default || '';
+                } else if (opt.type === 'json') {
+                    acc[opt.name] = opt.placeholder || '{}';
+                } else if (opt.type === 'file') {
+                    acc[opt.name] = null;
                 }
                 return acc;
             }, {});
@@ -472,60 +1521,132 @@ function App() {
             const uploadResults = await Promise.all(uploadPromises);
             const fileKeys = uploadResults.map(res => res.key);
 
-            // Step 2: Start the processing task
+            // Step 2: Start the processing task (AI vs Core)
             setStatus('processing');
             setProgress(50);
-            
-            const processResponse = await fetch(`${API_BASE_URL}/process`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    command: currentToolId,
-                    file_keys: fileKeys,
-                    params: options,
-                }),
-                credentials: 'include'
-            });
 
-            if (!processResponse.ok) {
-                const errText = await processResponse.text();
-                throw new Error(`Processing failed: ${errText}`);
+            const isAI = ['chat_pdf', 'analyze_pdf', 'classify_document', 'workflow'].includes(currentToolId);
+            let task_id;
+            if (isAI) {
+                const primaryFile = fileKeys[0];
+                let primaryEndpoint = '';
+                let fallbackEndpoint = '';
+                let payload = {};
+                if (currentToolId === 'chat_pdf') {
+                    primaryEndpoint = '/advanced/chat-pdf';
+                    fallbackEndpoint = '/api/chat-pdf';
+                    payload = { file_key: primaryFile, question: options.question || '' };
+                } else if (currentToolId === 'analyze_pdf') {
+                    primaryEndpoint = '/advanced/analyze-pdf';
+                    fallbackEndpoint = '/api/analyze-pdf';
+                    payload = { file_key: primaryFile };
+                } else if (currentToolId === 'classify_document') {
+                    primaryEndpoint = '/advanced/classify-document';
+                    fallbackEndpoint = '/api/classify-document';
+                    payload = { file_key: primaryFile };
+                } else if (currentToolId === 'workflow') {
+                    primaryEndpoint = '/advanced/workflow';
+                    fallbackEndpoint = '/api/workflow';
+                    payload = { file_key: primaryFile, commands: options.commands || [] };
+                }
+
+                const postJSON = async (endpoint) => fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    credentials: 'include'
+                });
+
+                let aiResp = await postJSON(primaryEndpoint);
+                if (!aiResp.ok && aiResp.status === 404) {
+                    aiResp = await postJSON(fallbackEndpoint);
+                }
+                if (!aiResp.ok) {
+                    const errText = await aiResp.text();
+                    throw new Error(`Processing failed: ${errText}`);
+                }
+                ({ task_id } = await aiResp.json());
+
+                // Poll /api/task-status for AI jobs
+                const pollTask = (taskId) => new Promise((resolve, reject) => {
+                    const interval = setInterval(async () => {
+                        try {
+                            const statusResponse = await fetch(`${API_BASE_URL}/api/task-status/${taskId}`, { credentials: 'include' });
+                            if (!statusResponse.ok) {
+                                clearInterval(interval);
+                                const errText = await statusResponse.text();
+                                return reject(new Error(`Failed to get task status: ${errText}`));
+                            }
+                            const data = await statusResponse.json();
+                            if (data.status === 'SUCCESS') {
+                                clearInterval(interval);
+                                setProgress(100);
+                                resolve(data.result || data);
+                            } else if (data.status === 'FAILURE') {
+                                clearInterval(interval);
+                                reject(new Error(data.error || 'Task failed without a specific error.'));
+                            }
+                        } catch (error) {
+                            clearInterval(interval);
+                            reject(error);
+                        }
+                    }, 2000);
+                });
+                const taskResult = await pollTask(task_id);
+                setResult(taskResult);
+                setStatus('success');
+                return;
+            } else {
+                const processResponse = await fetch(`${API_BASE_URL}/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        command: currentToolId,
+                        file_keys: fileKeys,
+                        params: options,
+                    }),
+                    credentials: 'include'
+                });
+
+                if (!processResponse.ok) {
+                    const errText = await processResponse.text();
+                    throw new Error(`Processing failed: ${errText}`);
+                }
+
+                ({ task_id } = await processResponse.json());
+
+                // Step 3: Poll for the task result (core)
+                const pollTask = (taskId) => new Promise((resolve, reject) => {
+                    const interval = setInterval(async () => {
+                        try {
+                            const statusResponse = await fetch(`${API_BASE_URL}/task/${taskId}`, { credentials: 'include' });
+                            if (!statusResponse.ok) {
+                                clearInterval(interval);
+                                const errText = await statusResponse.text();
+                                return reject(new Error(`Failed to get task status: ${errText}`));
+                            }
+                            const data = await statusResponse.json();
+                            if (data.status === 'SUCCESS') {
+                                clearInterval(interval);
+                                setProgress(100);
+                                resolve(data.result);
+                            } else if (data.status === 'FAILURE') {
+                                clearInterval(interval);
+                                reject(new Error(data.error || 'Task failed without a specific error.'));
+                            } else if (data.status === 'PROGRESS') {
+                                setProgress(50 + (data.progress / 2));
+                            }
+                        } catch (error) {
+                            clearInterval(interval);
+                            reject(error);
+                        }
+                    }, 2000);
+                });
+
+                const taskResult = await pollTask(task_id);
+                setResult(taskResult);
+                setStatus('success');
             }
-
-            const { task_id } = await processResponse.json();
-
-            // Step 3: Poll for the task result
-            const pollTask = (taskId) => new Promise((resolve, reject) => {
-                const interval = setInterval(async () => {
-                    try {
-                        const statusResponse = await fetch(`${API_BASE_URL}/task/${taskId}`, {
-                            credentials: 'include'
-                        });
-                        if (!statusResponse.ok) {
-                           clearInterval(interval);
-                           const errText = await statusResponse.text();
-                           return reject(new Error(`Failed to get task status: ${errText}`));
-                        }
-                        const data = await statusResponse.json();
-
-                        if (data.status === 'SUCCESS') {
-                            clearInterval(interval);
-                            setProgress(100);
-                            resolve(data.result);
-                        } else if (data.status === 'FAILURE') {
-                            clearInterval(interval);
-                            reject(new Error(data.error || 'Task failed without a specific error.'));
-                        } else if (data.status === 'PROGRESS') {
-                            setProgress(50 + (data.progress / 2));
-                        }
-                    } catch (error) {
-                         clearInterval(interval);
-                         reject(error);
-                    }
-                }, 2000);
-            });
-
-            const taskResult = await pollTask(task_id);
             
             // Step 4: Handle success
             setResult(taskResult);
@@ -635,8 +1756,8 @@ function App() {
                 
                 <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {Object.keys(toolConfig).map(toolId => (
-                            <ToolCard key={toolId} toolId={toolId} onSelect={setCurrentToolId} />
+                        {ALL_TOOLS.map(tool => (
+                            <ToolCard key={tool.id} toolId={tool.id} onSelect={setCurrentToolId} />
                         ))}
                     </div>
                 </main>
@@ -658,7 +1779,7 @@ function App() {
 
                 <div className="bg-white rounded-xl shadow-lg p-8">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-800">{currentTool.title}</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">{currentTool.name}</h1>
                         <p className="text-gray-500 mt-2">{currentTool.description}</p>
                     </div>
 
@@ -695,7 +1816,7 @@ function App() {
                                         onClick={handleSubmit}
                                         className="w-full mt-8 py-4 bg-red-500 text-white text-lg font-bold rounded-lg hover:bg-red-600 transition-colors shadow-md"
                                     >
-                                        {currentTool.title}
+                                        {currentTool.name}
                                     </button>
                                 </>
                             )}
@@ -715,15 +1836,28 @@ function App() {
                     {status === 'success' && result && (
                          <div className="text-center py-10">
                              <h2 className="text-2xl font-bold text-green-600 mb-4">Processing Complete!</h2>
-                             <p className="text-gray-700 mb-6">Your file is ready for download.</p>
-                             <a
-                                 href={`${API_BASE_URL}/download?key=${result.key}`}
-                                 download={result.filename}
-                                 className="inline-block px-10 py-4 bg-red-500 text-white text-lg font-bold rounded-lg hover:bg-red-600 transition-colors shadow-md"
-                             >
-                                 Download File
-                             </a>
-                             <p className="text-sm text-gray-500 mt-4">Size: {formatBytes(result.size)}</p>
+                             {result.key ? (
+                               <>
+                                 <p className="text-gray-700 mb-6">Your file is ready for download.</p>
+                                 <a
+                                     href={`${API_BASE_URL}/download?key=${result.key}`}
+                                     download={result.filename}
+                                     className="inline-block px-10 py-4 bg-red-500 text-white text-lg font-bold rounded-lg hover:bg-red-600 transition-colors shadow-md"
+                                 >
+                                     Download File
+                                 </a>
+                                 {typeof result.size === 'number' && (
+                                   <p className="text-sm text-gray-500 mt-4">Size: {formatBytes(result.size)}</p>
+                                 )}
+                               </>
+                             ) : (
+                               <div className="text-left mx-auto max-w-xl">
+                                  <p className="text-gray-700 mb-3">AI Result</p>
+                                  <pre className="bg-gray-100 p-4 rounded-md text-sm overflow-auto">
+{JSON.stringify(result, null, 2)}
+                                  </pre>
+                               </div>
+                             )}
                          </div>
                     )}
                     
@@ -1046,7 +2180,7 @@ const SetNewPasswordView = ({ email, onPasswordReset, onBackToLogin }) => {
             )}
             
             <div className="mt-4 text-center">
-                <button onClick={onBackToLogin} className="text-backToLogin} className="text-red-500 hover:text-red-600">
+                <button onClick={onBackToLogin} className="text-red-500 hover:text-red-600">
                     Back to Login
                 </button>
             </div>
@@ -1128,15 +2262,62 @@ const MobileLoginView = ({ onBackToLogin, onLoginSuccess }) => {
 
     return (
         <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl fontBuilder: The apply model made the following changes to the file:
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Mobile Login</h2>
 
-```
-            <div className="text-center">
-                <button onClick={onBackToLogin} className="text-backToLogin} className="text-red-500 hover:text-red-600">
-                    Back to Login
-                </button>
-                    Back to Login
-                </button>
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                    <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="e.g., +1234567890"
+                    />
+                </div>
+
+                {otpSent && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">OTP Code</label>
+                        <input
+                            type="text"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Enter the 6-digit code"
+                        />
+                    </div>
+                )}
+
+                {!otpSent ? (
+                    <button
+                        onClick={handleSendOTP}
+                        disabled={isLoading}
+                        className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                        {isLoading ? 'Sending...' : 'Send OTP'}
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleVerifyOTP}
+                        disabled={isLoading}
+                        className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                        {isLoading ? 'Verifying...' : 'Verify OTP'}
+                    </button>
+                )}
+
+                {message && (
+                    <div className={`p-3 rounded-md text-sm ${message.toLowerCase().includes('error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {message}
+                    </div>
+                )}
+
+                <div className="text-center">
+                    <button onClick={onBackToLogin} className="text-red-500 hover:text-red-600">
+                        Back to Login
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -1144,16 +2325,16 @@ const MobileLoginView = ({ onBackToLogin, onLoginSuccess }) => {
 
 // Existing Components
 const ToolCard = ({ toolId, onSelect }) => {
-    const tool = toolConfig[toolId];
+    const tool = ALL_TOOLS.find(t => t.id === toolId);
     return (
         <div 
             onClick={() => onSelect(toolId)}
             className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border border-gray-200 hover:border-red-300"
         >
             <div className="text-red-500 mb-4 flex justify-center">
-                {React.cloneElement(tool.icon, { width: 48, height: 48 })}
+                {renderIcon(tool.icon, 48)}
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">{tool.title}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">{tool.name}</h3>
             <p className="text-gray-600 text-sm text-center">{tool.description}</p>
         </div>
     );
@@ -1190,31 +2371,88 @@ const ToolOptions = ({ tool, options, setOptions }) => {
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Options</h3>
             {tool.options.map((option) => (
-                <div key={option.id} className="mb-4">
+                <div key={option.name} className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         {option.label}
                     </label>
                     {option.type === 'select' ? (
                         <select
-                            value={options[option.id] || ''}
-                            onChange={(e) => setOptions(prev => ({ ...prev, [option.id]: e.target.value }))}
+                            value={options[option.name] || ''}
+                            onChange={(e) => setOptions(prev => ({ ...prev, [option.name]: e.target.value }))}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         >
-                            {option.choices.map((choice) => (
+                            {(option.options || []).map((choice) => (
                                 <option key={choice.value} value={choice.value}>
                                     {choice.label}
                                 </option>
                             ))}
                         </select>
-                    ) : (
+                    ) : option.type === 'multiselect' ? (
+                        <div className="space-y-2">
+                            {(option.options || []).map((choice) => {
+                                const selected = Array.isArray(options[option.name]) && options[option.name].includes(choice.value);
+                                return (
+                                    <label key={choice.value} className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!selected}
+                                            onChange={(e) => {
+                                                setOptions(prev => {
+                                                    const prevArr = Array.isArray(prev[option.name]) ? prev[option.name] : [];
+                                                    const nextArr = e.target.checked
+                                                        ? [...prevArr, choice.value]
+                                                        : prevArr.filter(v => v !== choice.value);
+                                                    return { ...prev, [option.name]: nextArr };
+                                                });
+                                            }}
+                                        />
+                                        <span>{choice.label}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    ) : option.type === 'password' ? (
                         <input
-                            type={option.type}
-                            value={options[option.id] || ''}
-                            onChange={(e) => setOptions(prev => ({ ...prev, [option.id]: e.target.value }))}
+                            type="password"
+                            value={options[option.name] || ''}
+                            onChange={(e) => setOptions(prev => ({ ...prev, [option.name]: e.target.value }))}
                             placeholder={option.placeholder || ''}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         />
-                    )}
+                    ) : option.type === 'text' ? (
+                        <input
+                            type="text"
+                            value={options[option.name] || ''}
+                            onChange={(e) => setOptions(prev => ({ ...prev, [option.name]: e.target.value }))}
+                            placeholder={option.placeholder || ''}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                    ) : option.type === 'number' ? (
+                        <input
+                            type="number"
+                            value={options[option.name] || ''}
+                            onChange={(e) => setOptions(prev => ({ ...prev, [option.name]: parseFloat(e.target.value) }))}
+                            placeholder={option.placeholder || ''}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                    ) : option.type === 'json' ? (
+                        <textarea
+                            value={options[option.name] || ''}
+                            onChange={(e) => setOptions(prev => ({ ...prev, [option.name]: e.target.value }))}
+                            placeholder={option.placeholder || ''}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                    ) : option.type === 'file' ? (
+                        <input
+                            type="file"
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                setOptions(prev => ({ ...prev, [option.name]: file }));
+                            }}
+                            accept={option.accept || ''}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                    ) : null}
                 </div>
             ))}
         </div>
@@ -1252,7 +2490,7 @@ const Dropzone = ({ onFilesAdded, tool, onSelectClick }) => {
             onDrop={handleDrop}
             className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg transition-colors duration-200 ${isDragging ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-white'}`}
         >
-            <div className="text-red-500 mb-4">{React.cloneElement(tool.icon, { width: 48, height: 48 })}</div>
+            <div className="text-red-500 mb-4">{renderIcon(tool.icon, 48)}</div>
             <p className="text-xl font-semibold text-gray-700">Drop PDF files here</p>
             <p className="text-gray-500 mt-1">or</p>
             <button onClick={onSelectClick} className="mt-4 px-6 py-2 bg-red-500 text-white font-semibold rounded-md cursor-pointer hover:bg-red-600 transition-colors">
@@ -1261,3 +2499,6 @@ const Dropzone = ({ onFilesAdded, tool, onSelectClick }) => {
         </div>
     );
 };
+
+// Mount the React application
+ReactDOM.render(<App />, document.getElementById('root'));

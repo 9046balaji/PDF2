@@ -1,342 +1,328 @@
 
-# PDF Tool - Professional Edition
+# Enhanced PDF Processing Tool
 
-A comprehensive PDF processing tool built with Flask, React, and SQLite. This application provides a modern web interface for various PDF operations including merge, split, compress, rotate, and advanced conversion features.
+A comprehensive, enterprise-grade PDF processing application with AI-powered features, advanced document manipulation, and robust error handling.
 
-## 🚀 Features
+## 🚀 **New Features (Latest Update)**
 
-### Core PDF Operations
-- **Merge PDFs**: Combine multiple PDF files into one document
-- **Split PDF**: Split PDF into multiple files by pages
-- **Compress PDF**: Reduce file size while maintaining quality
-- **Rotate PDF**: Rotate pages by 90°, 180°, or 270°
+### **Enhanced PDF Processing Engine**
+- **Advanced PDF Operations**: 50+ PDF manipulation features with validation
+- **Document Conversion**: Support for Word, PowerPoint, Excel, HTML ↔ PDF
+- **Workflow Automation**: Chain multiple operations for complex workflows
+- **Bulk Processing**: Process multiple files simultaneously
+- **Error Handling**: Comprehensive validation and error management
 
-### Advanced PDF Conversion
-- **PDF to Word**: Convert PDF to editable DOCX documents
-- **PDF to Excel**: Extract tables and convert to Excel spreadsheets
-- **PDF to JPG**: Convert PDF pages to high-quality images
+### **AI-Powered Features**
+- **Chat with PDF**: Interactive Q&A with document content
+- **AI Analysis**: Intelligent document summarization and insights
+- **Document Classification**: ML-based document type identification
+- **Automated Workflow**: AI-driven process optimization
 
-### PDF Security & Protection
-- **Protect PDF**: Add password protection and encryption
-- **Unlock PDF**: Remove password protection from encrypted files
+### **Security & Compliance**
+- **Digital Signatures**: PKI-based document signing
+- **Password Protection**: AES-128 encryption for sensitive documents
+- **PDF/A Compliance**: Long-term archival format support
+- **Audit Logging**: Complete operation tracking and logging
 
-### PDF Enhancement
-- **Add Watermarks**: Stamp text watermarks with custom opacity
-- **Page Numbering**: Automatically add page numbers in various positions
-- **Headers & Footers**: Insert custom headers and footers on every page
+## ✨ **Core Features**
 
-### 🤖 AI-Powered Document Intelligence
-- **Chat with PDF**: Ask questions about your PDF content using RAG (Retrieval-Augmented Generation)
-- **AI Analysis**: Get AI-powered summaries, named entity recognition (NER), and topic modeling
-- **Document Classification**: Automatically classify document types using machine learning models
+### **PDF Manipulation**
+- **Merge PDFs**: Combine multiple documents into one
+- **Split PDF**: Separate into individual pages
+- **Extract Pages**: Select specific pages
+- **Remove Pages**: Delete unwanted content
+- **Organize Pages**: Custom page ordering
+- **Rotate PDF**: 90°, 180°, 270° rotation
+- **Compress PDF**: Reduce file size
+- **Watermark**: Add text/image watermarks
+- **Page Numbers**: Automatic numbering
+- **Protect/Unlock**: Password encryption/decryption
 
-### 🔄 Workflow Automation
-- **Automated Workflows**: Chain multiple PDF operations (unlock → OCR → compress → watermark)
-- **Batch Processing**: Process multiple files with the same workflow
-- **Task Chaining**: Execute complex PDF processing pipelines automatically
+### **Document Conversion**
+- **Word → PDF**: Preserve formatting and structure
+- **PowerPoint → PDF**: Convert presentations
+- **Excel → PDF**: Spreadsheet conversion
+- **HTML → PDF**: Web page conversion
+- **PDF → PowerPoint**: Extract content to slides
 
-### User Features
-- **User Authentication**: Secure user registration and login system
-- **File Management**: Track upload history and processing records
-- **Modern UI**: Responsive React frontend with Tailwind CSS
-- **Database Integration**: SQLite backend with SQLAlchemy ORM
-- **Session Management**: Secure Flask-Login integration
+### **Advanced Editing**
+- **Text Addition**: Overlay text on specific pages
+- **Form Filling**: Populate PDF form fields
+- **Annotations**: Highlights, lines, shapes
+- **Redaction**: Secure information removal
+- **Image Extraction**: Extract embedded images
+- **OCR Processing**: Text recognition from images
 
-## 🛠️ Tech Stack
+### **Document Intelligence**
+- **Text Extraction**: Clean text extraction
+- **PDF Comparison**: Diff analysis between documents
+- **Repair Tools**: Corrupted file recovery
+- **Validation**: PDF/A compliance checking
+- **Metadata**: Document information extraction
 
-### Backend
-- **Flask**: Python web framework
-- **Flask-SQLAlchemy**: Database ORM
-- **Flask-Login**: User authentication and session management
-- **SQLite**: Local database (easy setup, no external dependencies)
-- **pypdf/pikepdf**: Core PDF processing
-- **pdfplumber**: Advanced text extraction and table detection
-- **reportlab**: PDF generation and modification
-- **pdf2image**: PDF to image conversion
-- **python-docx**: Word document creation
-- **openpyxl**: Excel spreadsheet creation
-- **PyMuPDF**: Alternative PDF processing and image conversion
+### **Image Processing**
+- **Compression**: Quality-based optimization
+- **Resizing**: Dimension adjustment
+- **Cropping**: Area selection
+- **Format Conversion**: JPG, PNG, GIF, etc.
 
-### AI/ML & Advanced Features
-- **Celery**: Asynchronous task queue for background processing
-- **Redis**: Message broker and result backend for Celery
-- **LangChain**: RAG (Retrieval-Augmented Generation) framework
-- **Transformers**: Hugging Face models for text generation and analysis
-- **spaCy**: Natural language processing and named entity recognition
-- **Gensim**: Topic modeling and document similarity
-- **MLflow**: Machine learning model lifecycle management
-- **scikit-learn**: Machine learning algorithms and utilities
+## 🏗️ **Architecture**
 
-### Frontend
-- **React 18**: Modern JavaScript framework
-- **Tailwind CSS**: Utility-first CSS framework
-- **Babel**: JSX compilation in browser
+### **Backend (Flask)**
+- **Modular Design**: Blueprint-based architecture
+- **Enhanced Processor**: `PDFProcessor` class with 50+ methods
+- **Error Handling**: Custom exceptions and validation
+- **Async Processing**: Celery task queue integration
+- **Database**: SQLite by default (dev) via SQLAlchemy; PostgreSQL optional
 
-### Security Features
-- **Password Hashing**: Secure password storage using Werkzeug
-- **Session Management**: Flask-Login for secure user sessions
-- **Input Validation**: Comprehensive input sanitization
-- **Path Traversal Protection**: Secure file handling
-- **CSRF Protection**: Built-in Flask-Login security
+### **Frontend (React/JSX)**
+- **Modern UI**: Responsive design with Tailwind CSS
+- **Tool Categories**: Core, AI, and Enhanced operations
+- **Form Validation**: Client-side input validation
+- **Real-time Updates**: Progress tracking and status updates
+- **File Management**: Drag-and-drop upload support
 
-## 📋 Prerequisites
+### **AI Integration**
+- **xAI Grok API**: Advanced language model integration
+- **Celery Tasks**: Asynchronous AI processing
+- **Redis Backend**: Task queue and caching
+- **ML Models**: Document classification and analysis
 
-- Python 3.8+
-- SQLite3 (included with Python)
-- Modern web browser with JavaScript enabled
-
-## 🚀 Quick Start
-
-### Local Development (Recommended)
-
-1.  **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd PDF2
-   ```
-
-2.  **Set up Python virtual environment**
-   ```bash
-   python -m venv venv
-   # On Windows
-   venv\Scripts\activate
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
-
-3.  **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4.  **Run the application**
-   ```bash
-   python app.py
-   ```
-
-5.  **Access the application**
-    - Frontend: http://localhost:5000
-    - Default admin user: `admin` / `admin123` (auto-generated)
-
-### Advanced Infrastructure (Optional)
-
-For production use or advanced features, you can use the full Docker infrastructure:
-
+## 🧪 Quickstart (SQLite / Dev)
 ```bash
-# Start the complete stack with AI features
-docker-compose -f docker-compose-advanced.yml up -d
+# Create and activate venv
+python -m venv venv
+venv\Scripts\activate    # Windows
+# or
+source venv/bin/activate  # macOS/Linux
 
-# This will start:
-# - Redis (Celery broker)
-# - Celery workers
-# - Jaeger (distributed tracing)
-# - MLflow (model management)
-# - PostgreSQL (optional)
-# - MinIO (S3-compatible storage)
-# - Prometheus & Grafana (monitoring)
+# Install minimal deps
+pip install -r requirements.txt
+
+# Run the app (SQLite DB auto-initializes)
+python app.py
+# Visit http://localhost:5000
 ```
 
-**Access Points:**
-- **Main App**: http://localhost:5000
-- **MLflow**: http://localhost:5001
-- **Jaeger**: http://localhost:16686
-- **MinIO Console**: http://localhost:9001
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3000 (admin/admin123)
+## 🛠️ **Installation & Setup**
 
-### First Time Setup
-
-The application will automatically:
-- Create the SQLite database (`pdf_tool.db`)
-- Set up all necessary tables
-- Create a default admin user
-- Initialize the file storage system
-
-## 🔧 Configuration
-
-### Environment Variables (Optional)
-
-Create a `.env` file in the root directory for production settings:
-
-```env
-FLASK_SECRET_KEY=your-super-secure-random-key
-FLASK_DEBUG=False
-DATABASE_URL=sqlite:///pdf_tool.db
-```
-
-### Default Configuration
-
-- **Database**: SQLite (`pdf_tool.db`)
-- **Secret Key**: Auto-generated secure key
-- **Debug Mode**: Enabled for development
-- **File Storage**: Local `uploads/` and `processed/` folders
-
-## 📁 Project Structure
-
-```
-PDF2/
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
-├── static/
-│   ├── index.html        # Main HTML file
-│   ├── app.js           # React application
-├── pdf_tool.py           # CLI tool for PDF operations
-├── tasks.py              # Celery tasks for async processing
-├── sdk.py                # Client SDK for API integration
-├── tests/                # Test files
-├── uploads/              # Uploaded files (created at runtime)
-├── processed/            # Processed files (created at runtime)
-├── bin/                  # Old/backup files
-└── pdf_tool.db          # SQLite database (created at runtime)
-```
-
-## 🧪 Testing
-
-### Manual Testing
-1. Start the application: `python app.py`
-2. Open http://localhost:5000 in your browser
-3. Register a new user or use the default admin account
-4. Test PDF operations by uploading and processing files
-
-### API Testing
-Use the included test scripts or test endpoints directly:
-
+### **Prerequisites**
 ```bash
-# Test authentication flow
-python test_auth_flow.py
-
-# Test specific endpoints
-curl -X POST http://localhost:5000/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"test","email":"test@example.com","password":"test123"}'
+# Python 3.8+
+# (Optional) PostgreSQL 12+
+# (Optional) Redis 6+
+# Node.js 16+ (for development)
 ```
 
-## 📚 API Documentation
+### **Backend Setup**
+```bash
+# Clone repository
+git clone <repository-url>
+cd PDF2
 
-### Authentication Endpoints
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or
+venv\Scripts\activate     # Windows
 
-- `GET/POST /register` - User registration
-- `GET/POST /login` - User login
+# Install dependencies
+pip install -r requirements.txt
+
+# Optional: switch to advanced stack
+# pip install -r requirements-enhanced.txt
+
+# Environment (defaults exist for SQLite dev)
+set FLASK_APP=app.py
+set FLASK_ENV=development
+
+# Run application
+python app.py
+```
+
+### **Frontend Setup**
+```bash
+# If you want to build separately with npm
+yarn install || npm install
+npm run build
+```
+
+## 📚 **API Endpoints**
+
+### **Core Operations**
+- `POST /process` - Standard PDF operations
+- `GET /task/<id>` - Task status for core operations
+- `GET /download?key=<file_key>` - File download
+
+### **Enhanced Operations**
+- `POST /enhanced/merge` - Advanced PDF merging (expects `file_keys` JSON)
+- `POST /enhanced/split` - Enhanced PDF splitting (expects `file_key` JSON)
+- `POST /enhanced/convert` - Document format conversion
+- `POST /enhanced/workflow` - Execute processing workflows
+- `POST /enhanced/bulk` - Bulk file processing
+
+### **AI Operations**
+- `POST /advanced/chat-pdf` - AI-powered PDF chat
+- `POST /advanced/analyze-pdf` - Document analysis
+- `POST /advanced/classify-document` - Document classification
+- `POST /advanced/workflow` - AI workflow automation
+- `GET /api/task-status/<id>` - AI task status
+
+### **Authentication**
+- `POST /register` - User registration
+- `POST /login` - User authentication
 - `POST /logout` - User logout
-- `GET /profile` - User profile (protected)
+- `GET /profile` - User profile (requires login)
+- `GET /auth/check` - Lightweight auth status (returns 401/200 if available)
 
-### PDF Processing Endpoints
+## 🔧 **Configuration**
 
-- `POST /upload` - Upload PDF file
-- `POST /process` - Process PDF with various operations
-- `GET /task/<task_id>` - Get task status
-- `GET /download` - Download processed file
+### **Environment Variables**
+```bash
+# Database
+# For SQLite (default): no env needed
+# For Postgres (optional):
+DATABASE_URL=postgresql://user:pass@localhost/pdf_tool
 
-### AI-Powered Endpoints
+# Redis / Celery (optional)
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
 
-- `POST /api/chat-pdf` - Chat with PDF using AI
-- `POST /api/analyze-pdf` - AI-powered PDF analysis
-- `POST /api/classify-document` - Document classification
-- `POST /api/workflow` - Execute automated workflows
-- `GET /api/task-status/<task_id>` - Get task status for AI operations
+# Security
+FLASK_SECRET_KEY=your_secret_key
+FLASK_DEBUG=true
 
-### Public API (v1)
+# File Storage
+UPLOADS_FOLDER=./uploads
+PROCESSED_FOLDER=./processed
+MAX_CONTENT_LENGTH_MB=50
+```
 
-- `POST /api/v1/pdf/process` - Public API for PDF processing
-- `GET /api/v1/docs/` - Interactive API documentation (Swagger)
+## ❗ Error Handling & Troubleshooting
 
-### Supported Operations
+### Global Behavior
+- Backend uses consistent JSON errors on API-like routes and returns SPA page for regular navigation.
+- Flask-Login unauthorized requests to API/SPA paths return `{ "error": "Unauthorized" }` with `401`.
+- Frontend detects auth using `/auth/check` and falls back to `/profile` automatically.
 
-- **merge**: Combine multiple PDFs
-- **split**: Split PDF by pages
-- **compress**: Reduce file size
-- **rotate**: Rotate pages
-- **pdf_to_word**: Convert to DOCX
-- **pdf_to_excel**: Convert to XLSX
-- **pdf_to_jpg**: Convert to images
-- **protect**: Add password protection
-- **unlock**: Remove password protection
-- **watermark**: Add text watermarks
-- **page_numbers**: Add page numbering
-- **headers_footers**: Add headers/footers
+### Upload Errors
+- "No file part" → Ensure form field name is `file` and request is multipart/form-data.
+- "No selected file" → Filename is empty; pick a file.
+- "Invalid file type. Only .pdf is allowed" → Only `.pdf` accepted in core `/upload`.
+- `413 Request Entity Too Large` → File size exceeds `MAX_CONTENT_LENGTH_MB` (default 50MB).
 
-### AI-Powered Operations
+### Enhanced Routes (file_keys)
+- Enhanced endpoints require resolving `file_keys` to paths. If you see:
+  - "File not found" → The DB record for that `file_key` is missing for the user.
+  - "File not found on disk" → The file’s path is missing under `uploads/`.
 
-- **chat_pdf**: Chat with PDF using AI (RAG)
-- **analyze_pdf**: AI-powered analysis (summary, NER, topics)
-- **classify_document**: Document classification using ML
-- **workflow**: Execute automated workflow chains
+### Notebook/Code Conversions
+- `.ipynb` → PDF/DOCX require external tools:
+  - `jupyter` (nbconvert), `pandoc`, and for PDF often `LaTeX` (`pdflatex`).
+- `.py` → PDF/DOCX requires `pygments` and `pdflatex`/`pandoc`.
+- Errors like "command not available" mean you must install the tool and ensure it’s on PATH.
 
-## 🔒 Security Features
+### Common Frontend Issues
+- React error "Element type is invalid" was fixed by safe icon rendering.
+- If auth appears to "log out" after login:
+  - Ensure cookies are allowed.
+  - Check `/auth/check` (should be 200 after login) or fallback `/profile`.
 
-### Authentication & Authorization
-- Secure password hashing with Werkzeug
-- Session-based authentication with Flask-Login
-- Protected routes requiring user login
-- Automatic session timeout
+### Logging
+- Backend logs detailed exceptions for `/login` and `/register` with stack traces.
+- Upload route logs the reason for failures (missing field, empty filename, invalid type).
 
-### File Security
-- File type validation (PDF only)
-- Secure filename handling
-- Path traversal protection
-- User file isolation
+## 📊 **Usage Examples**
 
-### Input Validation
-- JSON payload validation
-- Parameter sanitization
-- Error message sanitization (no internal details exposed)
+### **Basic PDF Operations**
+```python
+from pdf_processor import PDFProcessor
 
-> **📖 For detailed security checkups and file preservation rules, see [SECURITY_AND_PRESERVATION_GUIDE.md](SECURITY_AND_PRESERVATION_GUIDE.md)**
+processor = PDFProcessor()
 
-## 🤝 Contributing
+# Merge PDFs
+result = processor.merge_pdfs(['file1.pdf', 'file2.pdf'], 'merged.pdf')
+
+# Split PDF
+result = processor.split_pdf('input.pdf', './output_dir')
+
+# Rotate PDF
+result = processor.rotate_pdf('input.pdf', 'rotated.pdf', 90, [1, 2])
+```
+
+### **Document Conversion**
+```python
+# Word to PDF
+result = processor.word_to_pdf('document.docx', 'output.pdf')
+
+# PowerPoint to PDF
+result = processor.powerpoint_to_pdf('presentation.pptx', 'output.pdf')
+
+# Excel to PDF
+result = processor.excel_to_pdf('spreadsheet.xlsx', 'output.pdf')
+```
+
+### **Advanced Features**
+```python
+# Add watermark
+result = processor.watermark_pdf('input.pdf', 'watermarked.pdf', 'Confidential')
+
+# Protect with password
+result = processor.protect_pdf('input.pdf', 'protected.pdf', 'user123', 'owner456')
+
+# Execute workflow
+operations = [
+    {'method': 'rotate_pdf', 'args': {'rotation': 90}},
+    {'method': 'watermark_pdf', 'args': {'watermark_text': 'Processed'}}
+]
+result = processor.execute_workflow(operations)
+```
+
+### **AI Operations**
+```python
+# Chat with PDF (Celery)
+result = chat_with_pdf.delay('document.pdf', 'What is the main topic?')
+```
+
+## 🧪 **Testing**
+
+```bash
+pytest
+```
+
+## 🚀 **Deployment**
+
+- Dev: `python app.py` (SQLite)
+- Prod: `gunicorn -w 4 -b 0.0.0.0:5000 app:app`
+
+## 🔒 **Security Features**
+
+- Input validation and file size limits
+- Path sanitization for downloads
+- Authenticated access for user data
+
+## 📈 **Performance**
+
+- Basic synchronous processing for core routes
+- Optional Celery for async/AI routes
+
+## 🤝 **Contributing**
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new features
+5. Submit a pull request
 
-## 📄 License
+## 📄 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🙏 **Acknowledgments**
 
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/yourusername/PDF2/issues) page
-2. Create a new issue with detailed information
-3. Check the terminal logs for error details
-
-## 🔄 Changelog
-
-### Version 2.0.0 (Current)
-- **Security Improvements**: Enhanced authentication, input validation, and file security
-- **Database**: Switched to SQLite for easier local development
-- **Advanced Features**: Added 12+ PDF processing operations
-- **UI Enhancements**: Modern React frontend with Tailwind CSS
-- **Error Handling**: Comprehensive error handling and user feedback
-
-### Version 1.0.0
-- Initial release with core PDF functionality
-- User authentication system
-- Basic PDF operations (merge, split, compress, rotate)
+- **PyPDF2**, **pdfminer**, **Pillow**, **Matplotlib**, **Celery**
 
 ---
 
-**Note**: This is a development version optimized for local development. For production use, ensure proper security configurations, environment variable management, and consider using PostgreSQL for multi-user environments.
-
-## ⚙️ Setup Log
-
-This section documents the steps taken to set up the development environment.
-
-1.  **Initial Setup:**
-    *   Cloned the repository.
-    *   Identified project dependencies from `requirements.txt`.
-
-2.  **Dependency Installation:**
-    *   Attempted to install dependencies using `pip install -r requirements.txt`.
-    *   Encountered a build error with the `gensim` package on Python 3.13.
-
-3.  **Python Version Management:**
-    *   Installed `pyenv-win` to manage Python versions.
-    *   Installed Python 3.12.10 using `pyenv-win`.
-    *   Set Python 3.12.10 as the global Python version for the project.
-
-4.  **Final Dependency Installation:**
-    *   Successfully installed all project dependencies using Python 3.12.
+**Built with ❤️ for the PDF processing community**
