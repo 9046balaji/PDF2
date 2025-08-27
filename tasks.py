@@ -2,7 +2,7 @@
 # This file defines the Celery tasks referenced in the Flask blueprint.
 # Assumptions:
 # - Celery is configured in your app (e.g., in app/__init__.py with celery = Celery(app)).
-# - For PDF processing, we use PyPDF2 to extract text. Install via pip install PyPDF2.
+# - For PDF processing, we use pypdf to extract text. Install via pip install pypdf.
 # - For AI features (chat, analyze), we use xAI's Grok API for querying/analyzing PDF content.
 #   Get API details and key from https://x.ai/api.
 # - For classification, we use a simple ML model with scikit-learn (install via pip install scikit-learn).
@@ -12,15 +12,16 @@
 # - Note: Scanning the PDF means extracting text from it, which is done here to enable querying.
 
 from celery import shared_task
+from pdf_processor import PDFProcessor, PDFOperationError
 import logging
 import os
 from typing import List, Dict, Any
 import requests  # For API calls
 
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 except ImportError:
-    raise ImportError("PyPDF2 is required for PDF processing. Install with 'pip install PyPDF2'.")
+    raise ImportError("pypdf is required for PDF processing. Install with 'pip install pypdf'.")
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -225,24 +226,33 @@ def import_from_drive(user_id: int, drive_file_id: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @shared_task
-def process_pdf_task(operation: str, file_keys: List[str]) -> Dict[str, Any]:
+def process_pdf_task(operation: str, input_paths: List[str], output_path: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generic PDF processing task that can handle various operations.
+    Generic processing task that calls PDFProcessor methods in the background.
+    Supports single-file and multi-file operations (e.g., merge_pdfs).
     """
     try:
-        # This would integrate with your existing PDF processing functions
-        # from app.py (merge_pdfs, compress_pdf, etc.)
-        logger.info(f"Processing {operation} on files: {file_keys}")
-        
-        # Placeholder implementation
-        return {
-            "operation": operation,
-            "file_keys": file_keys,
-            "status": "completed",
-            "result": f"Processed {len(file_keys)} files with {operation}"
-        }
+        logger.info(f"[Celery] {operation} -> inputs: {input_paths}, output: {output_path}")
+        processor = PDFProcessor()
+        method = getattr(processor, operation)
+        # Prepare arguments
+        kwargs = params.copy() if isinstance(params, dict) else {}
+        if operation == 'merge_pdfs':
+            result_text = method(pdf_list=input_paths, output_path=output_path)
+        else:
+            # Use first input for single-file ops
+            result_text = method(input_path=input_paths[0], output_path=output_path, **kwargs)
+        # Normalize result to previous schema expected by frontend (key, filename, size)
+        try:
+            size = os.path.getsize(output_path)
+            key = os.path.basename(output_path)
+        except Exception:
+            size = None
+            key = os.path.basename(output_path)
+        return {"key": key, "filename": key, "size": size, "message": result_text}
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"[Celery] Task failed: {e}", exc_info=True)
+        return {"status": "FAILURE", "error": str(e)}
 
 # Celery configuration
 from celery import Celery

@@ -2,6 +2,139 @@
 
 const API_BASE_URL = window.location.origin;
 
+// Import our enhanced components
+// const EnhancedSearchComponent = require('./EnhancedSearchComponent');
+const EnhancedPDFTools = window.EnhancedPDFTools || function FallbackComponent() {
+    return React.createElement('div', {className: 'error-message'}, 
+        'EnhancedPDFTools component not loaded correctly. Please check your console for errors.'
+    );
+};
+
+/* ---------- Minimal accessible Login Modal ---------- */
+function LoginModal({ visible, onClose, onSubmit }) {
+  const refFirst = React.useRef(null);
+  const [rememberMe, setRememberMe] = React.useState(!!localStorage.getItem('rememberUser'));
+  
+  React.useEffect(() => {
+    if (!visible) return;
+    const prev = document.activeElement;
+    // focus first input for accessibility
+    setTimeout(()=> refFirst.current?.focus(), 0);
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      prev?.focus?.();
+    };
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+  
+  function handleSubmit(e){
+    e.preventDefault();
+    const data = { 
+      email: e.target.email.value, 
+      password: e.target.password.value,
+      rememberMe: rememberMe 
+    };
+    // placeholder: replace with real auth handler
+    if (onSubmit) onSubmit(data);
+  }
+
+  return (
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onMouseDown={onClose} aria-hidden={false}>
+      <div role="dialog" aria-modal="true" aria-label="Login" className="bg-white rounded-lg shadow-lg w-full max-w-md p-6" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Login</h2>
+          <button aria-label="Close login" onClick={onClose} className="p-1">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <label className="block text-sm">
+            <span className="sr-only">Email</span>
+            <input 
+              ref={refFirst} 
+              name="email" 
+              type="email" 
+              required 
+              placeholder="Email" 
+              defaultValue={localStorage.getItem('userEmail') || ''}
+              className="w-full p-2 rounded border mb-3" 
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="sr-only">Password</span>
+            <input name="password" type="password" required placeholder="Password" className="w-full p-2 rounded mb-4 border" />
+          </label>
+          
+          <div className="flex items-center mb-4">
+            <input 
+              id="remember-me-modal" 
+              name="remember-me" 
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 text-red-500 focus:ring-red-400 border-gray-300 rounded" 
+            />
+            <label htmlFor="remember-me-modal" className="ml-2 block text-sm text-gray-700">
+              Remember me
+            </label>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="px-3 py-1 rounded border">Cancel</button>
+            <button type="submit" className="px-4 py-1 rounded bg-red-500 text-white">Sign in</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Minimal Register Modal (similar behavior) ---------- */
+function RegisterModal({ visible, onClose, onSubmit }) {
+  const refFirst = React.useRef(null);
+  React.useEffect(() => {
+    if (!visible) return;
+    const prev = document.activeElement;
+    setTimeout(()=> refFirst.current?.focus(), 0);
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      prev?.focus?.();
+    };
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+  
+  function handleSubmit(e){
+    e.preventDefault();
+    const data = { email: e.target.email.value, password: e.target.password.value };
+    if (onSubmit) onSubmit(data);
+  }
+
+  return (
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onMouseDown={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Register" className="bg-white rounded-lg shadow-lg w-full max-w-md p-6" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Create account</h2>
+          <button aria-label="Close register" onClick={onClose} className="p-1">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <input ref={refFirst} name="email" type="email" required placeholder="Email" className="w-full p-2 rounded border mb-3" />
+          <input name="password" type="password" required placeholder="Password" className="w-full p-2 rounded mb-4 border" />
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="px-3 py-1 rounded border">Cancel</button>
+            <button type="submit" className="px-4 py-1 rounded bg-red-500 text-white">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // Enhanced PDF Processing Tools
 const ENHANCED_TOOLS = [
     {
@@ -10,6 +143,7 @@ const ENHANCED_TOOLS = [
         description: 'Merge multiple PDFs with advanced validation',
         icon: '📄',
         category: 'enhanced',
+        allowMultiple: true,
         options: [
             {
                 type: 'multiselect',
@@ -26,6 +160,7 @@ const ENHANCED_TOOLS = [
         description: 'Split PDF into individual pages with validation',
         icon: '✂️',
         category: 'enhanced',
+        allowMultiple: false,
         options: [
             {
                 type: 'select',
@@ -42,6 +177,7 @@ const ENHANCED_TOOLS = [
         description: 'Convert between document formats with validation',
         icon: '🔄',
         category: 'enhanced',
+        allowMultiple: false,
         options: [
             {
                 type: 'select',
@@ -57,7 +193,10 @@ const ENHANCED_TOOLS = [
                 required: true,
                 options: [
                     { value: 'pdf', label: 'PDF' },
-                    { value: 'pptx', label: 'PowerPoint' }
+                    { value: 'pptx', label: 'PowerPoint' },
+                    { value: 'docx', label: 'Word Document' },
+                    { value: 'xlsx', label: 'Excel Spreadsheet' },
+                    { value: 'jpg', label: 'JPEG Image' }
                 ]
             }
         ]
@@ -68,6 +207,7 @@ const ENHANCED_TOOLS = [
         description: 'Execute complex PDF processing workflows',
         icon: '⚙️',
         category: 'enhanced',
+        allowMultiple: false,
         options: [
             {
                 type: 'select',
@@ -97,6 +237,7 @@ const ENHANCED_TOOLS = [
         description: 'Process multiple files with the same operation',
         icon: '📦',
         category: 'enhanced',
+        allowMultiple: true,
         options: [
             {
                 type: 'multiselect',
@@ -890,6 +1031,7 @@ const ENHANCED_TOOLS = [
         description: 'Convert Jupyter notebooks to PDF format',
         icon: '📓',
         category: 'enhanced',
+        allowMultiple: false,
         options: [
             {
                 type: 'select',
@@ -1267,6 +1409,114 @@ const AI_TOOLS = [];
 // Update the tools array to include enhanced tools
 const ALL_TOOLS = [...CORE_TOOLS, ...AI_TOOLS, ...ENHANCED_TOOLS];
 
+// Make ALL_TOOLS available globally
+if (typeof window !== 'undefined') {
+    window.ALL_TOOLS = ALL_TOOLS;
+}
+
+// Improved search component
+const EnhancedSearchComponent = () => {
+    const [searchValue, setSearchValue] = React.useState('');
+    const [results, setResults] = React.useState([]);
+    const [message, setMessage] = React.useState('');
+    const [showResults, setShowResults] = React.useState(false);
+    
+    const handleSearch = (value) => {
+        setSearchValue(value);
+        setShowResults(true);
+        
+        if (!value.trim()) {
+            setResults([]);
+            setMessage('');
+            setShowResults(false);
+            return;
+        }
+        
+        // Find matching tools
+        const matches = ALL_TOOLS.filter(tool => 
+            tool.name.toLowerCase().includes(value.toLowerCase()) || 
+            tool.description.toLowerCase().includes(value.toLowerCase())
+        );
+        
+        if (matches.length > 0) {
+            setResults(matches);
+            setMessage('');
+        } else {
+            setResults([]);
+            setMessage(`No results found for "${value}"`);
+        }
+    };
+    
+    const handleAddItem = (toolId) => {
+        // You can implement this to set the current tool or navigate to it
+        if (window.setCurrentToolId) {
+            window.setCurrentToolId(toolId);
+        }
+        setShowResults(false);
+    };
+    
+    const handleSuggestNewTool = () => {
+        // This could be extended to open a form or submit a suggestion
+        alert(`Your suggestion for "${searchValue}" has been recorded. Thanks for helping us improve!`);
+        setShowResults(false);
+        setSearchValue('');
+    };
+    
+    return (
+        <div className="relative w-full sm:w-64">
+            {/* Search input */}
+            <div className="relative">
+                <input
+                    type="search"
+                    value={searchValue}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    placeholder="Search for any tool..."
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring focus:ring-red-200 focus:border-red-500 transition-colors"
+                />
+                <div className="absolute left-3 top-2.5 text-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                </div>
+            </div>
+            
+            {/* Results dropdown */}
+            {showResults && (searchValue.trim() !== '') && (
+                <div className="absolute w-full mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                    {results.length > 0 ? (
+                        <div className="p-2">
+                            {results.map(tool => (
+                                <div key={tool.id} className="p-2 hover:bg-gray-50 rounded flex justify-between items-center">
+                                    <div>
+                                        <div className="font-medium">{tool.name}</div>
+                                        <div className="text-xs text-gray-500">{tool.description}</div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleAddItem(tool.id)}
+                                        className="ml-2 px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                                    >
+                                        Select
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-4 text-center">
+                            <p className="text-gray-600 mb-3">{message}</p>
+                            <button 
+                                onClick={handleSuggestNewTool}
+                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                            >
+                                Suggest "{searchValue}"
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Safe icon renderer: supports both React elements and plain strings (emoji)
 function renderIcon(icon, size = 48) {
     if (icon && typeof icon === 'object' && React.isValidElement(icon)) {
@@ -1276,6 +1526,56 @@ function renderIcon(icon, size = 48) {
         return React.createElement('span', { style: { fontSize: `${size}px`, lineHeight: 1 } }, icon);
     }
     return null;
+}
+
+// Reusable navigation bar to avoid duplicated header markup
+function NavBar({ activeCategory, setActiveCategory, setSearchQuery, onOpenLogin, onOpenRegister, onToggleSettings, onToggleMobileMenu, mobileMenuOpen }) {
+    return (
+        <header className="sticky top-0 bg-white/95 backdrop-blur-sm z-40 border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-14">
+                    <div className="flex items-center gap-4">
+                        <a href="#" className="text-red-500 font-bold text-2xl flex items-center" aria-label="Home">
+                            I<span className="text-red-400">❤️</span>PDF
+                        </a>
+
+                        <nav className="hidden lg:flex items-center gap-2" aria-label="Main menu">
+                            <button onClick={() => setActiveCategory('organize')} className={`px-3 py-1 rounded-md text-sm ${activeCategory==='organize' ? 'bg-red-500 text-white' : 'hover:bg-gray-50'}`}>Organize</button>
+                            <button onClick={() => setActiveCategory('optimize')} className={`px-3 py-1 rounded-md text-sm ${activeCategory==='optimize' ? 'bg-red-500 text-white' : 'hover:bg-gray-50'}`}>Optimize</button>
+                            <button onClick={() => setActiveCategory('convert')} className={`px-3 py-1 rounded-md text-sm ${activeCategory==='convert' ? 'bg-red-500 text-white' : 'hover:bg-gray-50'}`}>Convert</button>
+                            <button onClick={() => setActiveCategory('edit')} className={`px-3 py-1 rounded-md text-sm ${activeCategory==='edit' ? 'bg-red-500 text-white' : 'hover:bg-gray-50'}`}>Edit</button>
+                            <button onClick={() => setActiveCategory('security')} className={`px-3 py-1 rounded-md text-sm ${activeCategory==='security' ? 'bg-red-500 text-white' : 'hover:bg-gray-50'}`}>Security</button>
+                        </nav>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full max-w-2xl ml-4">
+                        <div className="relative flex-1 hidden md:block">
+                            <input aria-label="Search tools" type="search" onChange={(e)=>setSearchQuery(e.target.value)} placeholder="Search tools (merge, split, compress)..." className="w-full pl-10 pr-3 py-2 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-red-200" />
+                            <div className="absolute left-3 top-2.5 text-gray-400">
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M12.9 14.32a8 8 0 111.414-1.414l4.387 4.387-1.414 1.414-4.387-4.387zM8 14a6 6 0 100-12 6 6 0 000 12z"/></svg>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button onClick={onOpenLogin} aria-label="Login" title="Login" className="p-2 rounded-md hover:bg-gray-50">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </button>
+
+                            <button onClick={onOpenRegister} aria-label="Sign up" title="Sign up" className="px-3 py-1.5 bg-red-500 text-white rounded-md text-sm hover:bg-red-600">Sign up</button>
+
+                            <button onClick={onToggleSettings} aria-label="Settings" title="Settings" className="p-2 rounded-md hover:bg-gray-50 hidden sm:inline">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 15.5A3.5 3.5 0 1112 8.5a3.5 3.5 0 010 7zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.12a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.12a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06A2 2 0 017.7 2.7l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.12c0 .6.39 1.12 1 1.51h.42c.7.3 1.4.2 1.82-.33l.06-.06A2 2 0 0120.7 6.3l-.06.06a1.65 1.65 0 00-.33 1.82V9c.41.61.91 1 1.51 1H21a2 2 0 010 4h-.12c-.6 0-1.12.39-1.51 1z" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </button>
+
+                            <button onClick={onToggleMobileMenu} className="md:hidden p-2" aria-expanded={mobileMenuOpen ? "true" : "false"}>
+                                <svg width="20" height="20" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+    );
 }
 
 function formatBytes(bytes, decimals = 2) {
@@ -1297,9 +1597,40 @@ function App() {
     const [showSetNewPassword, setShowSetNewPassword] = React.useState(false);
     const [showMobileLogin, setShowMobileLogin] = React.useState(false);
     const [resetEmail, setResetEmail] = React.useState('');
+    const [loginFormData, setLoginFormData] = React.useState(null);
     
     // App state
     const [currentToolId, setCurrentToolId] = React.useState(null);
+    const [activeCategory, setActiveCategory] = React.useState('all');
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const [collapsed, setCollapsed] = React.useState({ pdf: false, ai: false, enhanced: false });
+    const [showSettings, setShowSettings] = React.useState(false);
+    const [teams, setTeams] = React.useState([{ id: 't1', name: 'My Team' }]);
+    const [language, setLanguage] = React.useState('EN');
+    
+    // Make setCurrentToolId available globally for the EnhancedSearchComponent
+    if (typeof window !== 'undefined') {
+        window.setCurrentToolId = setCurrentToolId;
+    }
+    
+    // Filter tools based on active category and search query
+    const filteredTools = React.useMemo(() => {
+        let filtered = activeCategory === 'all' 
+            ? ALL_TOOLS 
+            : ALL_TOOLS.filter(t => (t.category || 'pdf') === activeCategory);
+            
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(t => 
+                t.name.toLowerCase().includes(query) || 
+                t.description.toLowerCase().includes(query)
+            );
+        }
+        
+        return filtered;
+    }, [activeCategory, searchQuery]);
+    
+    const toggleCollapse = (key) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
     const [files, setFiles] = React.useState([]);
     const [options, setOptions] = React.useState({});
     const [status, setStatus] = React.useState('idle');
@@ -1309,6 +1640,166 @@ function App() {
     
     // Refs
     const fileInputRef = React.useRef(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+    // Task polling helpers
+    const pollCoreTask = React.useCallback((taskId, onProgress) => {
+        let isCancelled = false;
+        
+        const promise = new Promise((resolve, reject) => {
+            const startedAt = Date.now();
+            const interval = setInterval(async () => {
+                if (isCancelled) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                try {
+                    const res = await fetch(`${API_BASE_URL}/task/${taskId}`, { 
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    if (isCancelled) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    
+                    if (!res.ok) {
+                        clearInterval(interval);
+                        return reject(new Error(await res.text()));
+                    }
+                    
+                    const data = await res.json();
+                    if (data.status === 'SUCCESS') {
+                        clearInterval(interval);
+                        resolve(data.result);
+                    } else if (data.status === 'FAILURE') {
+                        clearInterval(interval);
+                        reject(new Error(data.error || 'Task failed'));
+                    } else if (data.status === 'PROGRESS' && typeof onProgress === 'function') {
+                        onProgress(data.progress || 0);
+                    }
+                    
+                    if (Date.now() - startedAt > 5 * 60 * 1000) { // 5m timeout
+                        clearInterval(interval);
+                        reject(new Error('Task timeout'));
+                    }
+                } catch (e) {
+                    if (!isCancelled) {
+                        clearInterval(interval);
+                        reject(e);
+                    }
+                }
+            }, 1500);
+            
+            // Add timeout
+            const timeout = setTimeout(() => {
+                if (!isCancelled) {
+                    clearInterval(interval);
+                    reject(new Error('Polling timed out after 5 minutes'));
+                }
+            }, 5 * 60 * 1000);
+            
+            // Return cleanup function
+            promise.cancel = () => {
+                isCancelled = true;
+                clearInterval(interval);
+                clearTimeout(timeout);
+            };
+        });
+        
+        return promise;
+    }, []);
+
+    const pollAiTask = React.useCallback((taskId) => {
+        let isCancelled = false;
+        
+        const promise = new Promise((resolve, reject) => {
+            const startedAt = Date.now();
+            const interval = setInterval(async () => {
+                if (isCancelled) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/task-status/${taskId}`, { 
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    if (isCancelled) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    
+                    if (!res.ok) {
+                        clearInterval(interval);
+                        return reject(new Error(await res.text()));
+                    }
+                    
+                    const data = await res.json();
+                    if (data.status === 'SUCCESS') {
+                        clearInterval(interval);
+                        resolve(data.result || data);
+                    } else if (data.status === 'FAILURE') {
+                        clearInterval(interval);
+                        reject(new Error(data.error || 'Task failed'));
+                    }
+                    
+                    if (Date.now() - startedAt > 5 * 60 * 1000) {
+                        clearInterval(interval);
+                        reject(new Error('Task timeout'));
+                    }
+                } catch (e) {
+                    if (!isCancelled) {
+                        clearInterval(interval);
+                        reject(e);
+                    }
+                }
+            }, 1500);
+            
+            // Add timeout
+            const timeout = setTimeout(() => {
+                if (!isCancelled) {
+                    clearInterval(interval);
+                    reject(new Error('Polling timed out after 5 minutes'));
+                }
+            }, 5 * 60 * 1000);
+            
+            // Return cleanup function
+            promise.cancel = () => {
+                isCancelled = true;
+                clearInterval(interval);
+                clearTimeout(timeout);
+            };
+        });
+        
+        return promise;
+    }, []);
+
+    // Simple i18n placeholder
+    const t = React.useCallback((key) => {
+        const dict = {
+            EN: {
+                welcome: 'Welcome',
+                everyTool: 'Every tool you need to work with PDFs in one place',
+                settings: 'Settings',
+                logout: 'Logout',
+                allTools: 'All Tools',
+                pdfTools: 'PDF Tools',
+                aiTools: 'AI Tools',
+                enhanced: 'Enhanced',
+                allPdf: 'All PDF',
+                allAi: 'All AI',
+                allEnhanced: 'All Enhanced',
+                quickActions: 'Quick Actions',
+                emptyTools: 'No tools found for this category.'
+            }
+        };
+        return (dict[language] && dict[language][key]) || key;
+    }, [language]);
 
     // Check authentication status on mount
     React.useEffect(() => {
@@ -1319,7 +1810,10 @@ function App() {
         try {
             console.log('Checking authentication status...');
             // First try the lightweight check
-            let response = await fetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
+            let response = await fetch(`${API_BASE_URL}/auth/check`, { 
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+            });
             console.log('Auth check (/auth/check) status:', response.status);
             if (response.ok) {
                 const data = await response.json();
@@ -1330,7 +1824,10 @@ function App() {
                 }
             }
             // Fallback to /profile (older servers)
-            response = await fetch(`${API_BASE_URL}/profile`, { credentials: 'include' });
+            response = await fetch(`${API_BASE_URL}/profile`, { 
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+            });
             console.log('Auth check fallback (/profile) status:', response.status);
             if (response.ok) {
                 const userData = await response.json();
@@ -1339,11 +1836,25 @@ function App() {
             } else {
                 setIsAuthenticated(false);
                 setCurrentUser(null);
+                
+                // Check if we have remembered credentials
+                const rememberUser = localStorage.getItem('rememberUser');
+                const userEmail = localStorage.getItem('userEmail');
+                
+                // If we have remembered user, show login modal pre-filled
+                if (rememberUser && userEmail) {
+                    console.log('Found remembered user, preparing auto-login prompt');
+                    // Pre-fill the login form with the saved email
+                    setLoginFormData({ username: userEmail, password: '' });
+                    setShowLogin(true);
+                }
             }
         } catch (error) {
-            console.log('Auth check error:', error);
+            console.error('Authentication check failed:', error.message);
             setIsAuthenticated(false);
             setCurrentUser(null);
+            // Provide fallback behavior
+            console.log('Continuing as guest user');
         }
     };
 
@@ -1351,10 +1862,17 @@ function App() {
         try {
             console.log('Attempting login with:', credentials);
             
+            // Extract rememberMe from credentials
+            const { rememberMe, ...loginData } = credentials;
+            
             const response = await fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(credentials),
+                headers: { 
+                    'Content-Type': 'application/json',
+                    // Add a header to indicate remember me preference
+                    'X-Remember-Me': rememberMe ? 'true' : 'false'
+                },
+                body: JSON.stringify(loginData),
                 credentials: 'include'
             });
             
@@ -1374,6 +1892,18 @@ function App() {
             
             if (response.ok) {
                 console.log('Login successful:', responseData);
+                
+                // Store the remember me preference in localStorage if selected
+                if (rememberMe) {
+                    localStorage.setItem('rememberUser', 'true');
+                    // You might want to store the user email for convenience
+                    localStorage.setItem('userEmail', credentials.email || credentials.username);
+                } else {
+                    // Clear any saved preferences if not checked
+                    localStorage.removeItem('rememberUser');
+                    localStorage.removeItem('userEmail');
+                }
+                
                 setIsAuthenticated(true);
                 setShowLogin(false);
                 checkAuthStatus();
@@ -1473,20 +2003,164 @@ function App() {
         }
     }, [currentTool]);
 
+    // Helper function to get accepted file types for a tool
+    const getAcceptedFileTypes = React.useCallback((tool) => {
+        if (!tool) return ['application/pdf'];
+        
+        // Default to PDF for most tools
+        const pdfTools = [
+            'merge', 'split', 'compress', 'rotate', 'protect', 'unlock', 'watermark',
+            'pdf_to_word', 'pdf_to_excel', 'pdf_to_jpg', 'pdf_to_powerpoint',
+            'extract_images', 'ocr_pdf_images', 'enhanced_merge', 'enhanced_split',
+            'validate_pdf_a', 'convert_to_pdf_a', 'extract_text', 'repair_pdf',
+            'sign_pdf', 'compare_pdfs', 'edit_pdf_add_text', 'fill_pdf_forms',
+            'annotate_pdf', 'redact_pdf', 'organize_pdf', 'remove_pages', 
+            'extract_pages', 'add_page_numbers', 'header_footer'
+        ];
+        
+        // Tools that accept Word documents
+        if (tool.id === 'word_to_pdf') {
+            return ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+        }
+        
+        // Tools that accept PowerPoint presentations
+        if (tool.id === 'powerpoint_to_pdf') {
+            return ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/vnd.ms-powerpoint'];
+        }
+        
+        // Tools that accept Excel spreadsheets
+        if (tool.id === 'excel_to_pdf') {
+            return ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+        }
+        
+        // Tools that accept images
+        if (['compress_image', 'resize_image', 'crop_image', 'convert_image_format'].includes(tool.id)) {
+            return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        }
+        
+        // Tools that accept Jupyter notebooks
+        if (['ipynb_to_pdf', 'ipynb_to_docx', 'ipynb_to_py'].includes(tool.id)) {
+            return ['application/x-ipynb+json', 'application/octet-stream'];
+        }
+        
+        // Tools that accept Python files
+        if (['py_to_ipynb', 'py_to_pdf', 'py_to_docx'].includes(tool.id)) {
+            return ['text/x-python', 'application/x-python', 'text/plain'];
+        }
+        
+        // Tools that accept HTML files
+        if (tool.id === 'html_to_pdf') {
+            return ['text/html'];
+        }
+        
+        // Default to PDF for all other tools
+        if (pdfTools.includes(tool.id)) {
+            return ['application/pdf'];
+        }
+        
+        // For enhanced_convert and other tools that might handle multiple formats
+        return ['application/pdf', 'application/x-ipynb+json', 'text/x-python', 
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'image/jpeg', 'image/png', 'text/html'];
+    }, []);
+
+    // Helper function to get a user-friendly name for a file type
+    const getFileTypeName = React.useCallback((mimeType) => {
+        const fileTypeMap = {
+            'application/pdf': 'PDF',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+            'application/msword': 'Word',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
+            'application/vnd.ms-powerpoint': 'PowerPoint',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+            'application/vnd.ms-excel': 'Excel',
+            'application/x-ipynb+json': 'Jupyter Notebook',
+            'application/octet-stream': 'Jupyter Notebook',
+            'text/x-python': 'Python',
+            'application/x-python': 'Python',
+            'text/plain': 'Text',
+            'image/jpeg': 'JPEG image',
+            'image/png': 'PNG image',
+            'image/gif': 'GIF image',
+            'image/webp': 'WebP image',
+            'text/html': 'HTML'
+        };
+        return fileTypeMap[mimeType] || mimeType;
+    }, []);
+
+    // Check file extension as a fallback for MIME type issues
+    const isValidFileByExtension = React.useCallback((filename, toolId) => {
+        const extension = filename.split('.').pop().toLowerCase();
+        
+        if (['ipynb_to_pdf', 'ipynb_to_docx', 'ipynb_to_py'].includes(toolId) && extension === 'ipynb') {
+            return true;
+        }
+        
+        if (['py_to_ipynb', 'py_to_pdf', 'py_to_docx'].includes(toolId) && extension === 'py') {
+            return true;
+        }
+        
+        if (toolId === 'word_to_pdf' && ['doc', 'docx'].includes(extension)) {
+            return true;
+        }
+        
+        if (toolId === 'powerpoint_to_pdf' && ['ppt', 'pptx'].includes(extension)) {
+            return true;
+        }
+        
+        if (toolId === 'excel_to_pdf' && ['xls', 'xlsx'].includes(extension)) {
+            return true;
+        }
+        
+        if (toolId === 'html_to_pdf' && ['html', 'htm'].includes(extension)) {
+            return true;
+        }
+        
+        if (['compress_image', 'resize_image', 'crop_image', 'convert_image_format'].includes(toolId) && 
+            ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+            return true;
+        }
+        
+        return false;
+    }, []);
+
     const handleFilesAdded = React.useCallback((newFiles) => {
-        const pdfFiles = newFiles.filter(file => file.type === 'application/pdf');
-        if (pdfFiles.length !== newFiles.length) {
-            alert("Only PDF files are allowed.");
+        if (!currentTool) {
+            alert("Please select a tool first.");
+            return;
         }
+        
+        // Get accepted file types for the current tool
+        const acceptedTypes = getAcceptedFileTypes(currentTool);
+        
+        // Filter files based on accepted types and file extensions
+        const validFiles = newFiles.filter(file => 
+            acceptedTypes.includes(file.type) || 
+            isValidFileByExtension(file.name, currentTool.id)
+        );
+        
+        // Show error if any files were filtered out
+        if (validFiles.length !== newFiles.length) {
+            const fileTypeNames = acceptedTypes.map(getFileTypeName);
+            const uniqueTypeNames = [...new Set(fileTypeNames)];
+            
+            alert(`For the ${currentTool.name} tool, only ${uniqueTypeNames.join(', ')} files are allowed.`);
+        }
+        
+        // Add valid files to the state
         if (currentTool && !currentTool.allowMultiple) {
-            setFiles(pdfFiles.slice(0, 1));
+            setFiles(validFiles.slice(0, 1));
         } else {
-            setFiles(prev => [...prev, ...pdfFiles]);
+            setFiles(prev => [...prev, ...validFiles]);
         }
-        if(fileInputRef.current) {
+        
+        // Reset file input
+        if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
-    }, [currentTool]);
+    }, [currentTool, getAcceptedFileTypes, getFileTypeName, isValidFileByExtension]);
 
     const handleRemoveFile = React.useCallback((index) => {
         setFiles(prev => prev.filter((_, i) => i !== index));
@@ -1495,39 +2169,95 @@ function App() {
     // Core API interaction logic
     const handleSubmit = async () => {
         if (files.length === 0) return;
+        
+        // Check server health before processing
+        try {
+            // Try the standard health endpoint first
+            let healthResponse = await fetch(`${API_BASE_URL}/health`, { 
+                credentials: 'include',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            
+            // If that fails, try the backup health endpoint
+            if (!healthResponse.ok) {
+                console.log("Primary health check failed, trying backup endpoint...");
+                healthResponse = await fetch(`${API_BASE_URL}/healthz`, { 
+                    credentials: 'include',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+            }
+            
+            if (!healthResponse.ok) {
+                setErrorMessage("Server health check failed. The service may be experiencing issues.");
+                setStatus('error');
+                return;
+            }
+        } catch (error) {
+            console.error("Health check failed:", error);
+            setErrorMessage("Cannot connect to the server. Please check your internet connection and try again.");
+            setStatus('error');
+            return;
+        }
+        
         setStatus('uploading');
         setErrorMessage('');
         setResult(null);
         setProgress(0);
 
         try {
-            // Step 1: Upload all files
+            // Step 1: Upload all files with retry logic
             const uploadPromises = files.map(async (file, index) => {
                 const formData = new FormData();
                 formData.append('file', file);
-                const response = await fetch(`${API_BASE_URL}/upload`, {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    const errText = await response.text();
+                
+                // Add retry logic for uploads
+                let retries = 2;
+                let uploadResponse;
+                
+                while (retries >= 0) {
+                    try {
+                        uploadResponse = await fetch(`${API_BASE_URL}/upload`, {
+                            method: 'POST',
+                            body: formData,
+                            credentials: 'include'
+                        });
+                        
+                        if (uploadResponse.ok) break;
+                        
+                        retries--;
+                        if (retries >= 0) {
+                            console.log(`Upload retry for ${file.name}, remaining: ${retries}`);
+                            await new Promise(r => setTimeout(r, 1000)); // Wait 1s between retries
+                        }
+                    } catch (err) {
+                        retries--;
+                        if (retries < 0) throw err;
+                        console.log(`Upload error for ${file.name}, retrying...`, err);
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                }
+                
+                if (!uploadResponse || !uploadResponse.ok) {
+                    const errText = await (uploadResponse ? uploadResponse.text() : "No response");
                     throw new Error(`Upload failed for ${file.name}: ${errText}`);
                 }
+                
                 setProgress(prev => prev + (50 / files.length));
-                return response.json();
+                return uploadResponse.json();
             });
 
             const uploadResults = await Promise.all(uploadPromises);
             const fileKeys = uploadResults.map(res => res.key);
 
-            // Step 2: Start the processing task (AI vs Core)
+            // Step 2: Start the processing task
             setStatus('processing');
             setProgress(50);
 
             const isAI = ['chat_pdf', 'analyze_pdf', 'classify_document', 'workflow'].includes(currentToolId);
             let task_id;
+            
             if (isAI) {
+                // AI processing logic unchanged
                 const primaryFile = fileKeys[0];
                 let primaryEndpoint = '';
                 let fallbackEndpoint = '';
@@ -1597,35 +2327,102 @@ function App() {
                 setStatus('success');
                 return;
             } else {
-                const processResponse = await fetch(`${API_BASE_URL}/process`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        command: currentToolId,
-                        file_keys: fileKeys,
-                        params: options,
-                    }),
-                    credentials: 'include'
-                });
+                // Enhanced error handling for process endpoint
+                let processResponse;
+                let retries = 2;
+                
+                const processPayload = {
+                    command: currentToolId,
+                    file_keys: fileKeys,
+                    params: options,
+                };
+                
+                console.log("Processing request payload:", JSON.stringify(processPayload, null, 2));
+                
+                while (retries >= 0) {
+                    try {
+                        processResponse = await fetch(`${API_BASE_URL}/process`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(processPayload),
+                            credentials: 'include'
+                        });
+                        
+                        if (processResponse.ok) break;
+                        
+                        // If we get a 500 error, try a simpler payload format as fallback
+                        if (processResponse.status === 500 && retries === 2) {
+                            const simplePayload = {
+                                command: currentToolId,
+                                file_key: fileKeys[0],  // Try with just the first file
+                            };
+                            
+                            console.log("Trying simplified payload:", JSON.stringify(simplePayload, null, 2));
+                            
+                            processResponse = await fetch(`${API_BASE_URL}/process`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(simplePayload),
+                                credentials: 'include'
+                            });
+                            
+                            if (processResponse.ok) break;
+                        }
+                        
+                        retries--;
+                        if (retries >= 0) {
+                            console.log(`Process retry, remaining: ${retries}`);
+                            await new Promise(r => setTimeout(r, 1500));
+                        }
+                    } catch (err) {
+                        retries--;
+                        if (retries < 0) throw err;
+                        console.log("Process error, retrying...", err);
+                        await new Promise(r => setTimeout(r, 1500));
+                    }
+                }
 
-                if (!processResponse.ok) {
-                    const errText = await processResponse.text();
+                if (!processResponse || !processResponse.ok) {
+                    let errText = await (processResponse ? processResponse.text() : "No response");
+                    console.error("Process response error:", processResponse ? processResponse.status : "No response", errText);
+                    
+                    // Provide more helpful error message
+                    if (processResponse && processResponse.status === 500) {
+                        errText = "The server encountered an internal error. This might be due to file format issues, server load, or unsupported operations. Please try a different file or try again later.";
+                    }
+                    
                     throw new Error(`Processing failed: ${errText}`);
                 }
 
-                ({ task_id } = await processResponse.json());
+                const processData = await processResponse.json();
+                task_id = processData.task_id;
 
-                // Step 3: Poll for the task result (core)
+                // Improved task polling with timeout and error handling
                 const pollTask = (taskId) => new Promise((resolve, reject) => {
+                    const startTime = Date.now();
+                    const maxWaitTime = 5 * 60 * 1000; // 5 minutes
+                    
                     const interval = setInterval(async () => {
                         try {
-                            const statusResponse = await fetch(`${API_BASE_URL}/task/${taskId}`, { credentials: 'include' });
+                            if (Date.now() - startTime > maxWaitTime) {
+                                clearInterval(interval);
+                                return reject(new Error("Task timed out after 5 minutes"));
+                            }
+                            
+                            const statusResponse = await fetch(`${API_BASE_URL}/task/${taskId}`, { 
+                                credentials: 'include',
+                                headers: { 'Cache-Control': 'no-cache' } // Prevent caching
+                            });
+                            
                             if (!statusResponse.ok) {
                                 clearInterval(interval);
                                 const errText = await statusResponse.text();
                                 return reject(new Error(`Failed to get task status: ${errText}`));
                             }
+                            
                             const data = await statusResponse.json();
+                            console.log("Task status:", data);
+                            
                             if (data.status === 'SUCCESS') {
                                 clearInterval(interval);
                                 setProgress(100);
@@ -1637,8 +2434,13 @@ function App() {
                                 setProgress(50 + (data.progress / 2));
                             }
                         } catch (error) {
-                            clearInterval(interval);
-                            reject(error);
+                            console.error("Error polling task:", error);
+                            // Don't reject immediately on polling errors, just log and continue
+                            // Only reject if we've been trying for too long
+                            if (Date.now() - startTime > maxWaitTime) {
+                                clearInterval(interval);
+                                reject(error);
+                            }
                         }
                     }, 2000);
                 });
@@ -1647,14 +2449,10 @@ function App() {
                 setResult(taskResult);
                 setStatus('success');
             }
-            
-            // Step 4: Handle success
-            setResult(taskResult);
-            setStatus('success');
 
         } catch (error) {
             console.error("An error occurred:", error);
-            setErrorMessage(error.message);
+            setErrorMessage(error.message || "An unknown error occurred during processing");
             setStatus('error');
         }
     };
@@ -1682,6 +2480,7 @@ function App() {
                             onSwitchToRegister={() => setShowRegister(true)} 
                             onForgotPassword={() => setShowForgotPassword(true)}
                             onMobileLogin={() => setShowMobileLogin(true)}
+                            initialData={loginFormData}
                         />
                     ) : showRegister ? (
                         <RegisterForm onRegister={handleRegister} onSwitchToLogin={() => setShowLogin(true)} />
@@ -1737,30 +2536,239 @@ function App() {
     if (!currentTool) {
         return (
             <div className="min-h-screen bg-gray-50 font-sans">
-                <header className="bg-white shadow-sm">
-                    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900">Welcome, {currentUser?.username}!</h1>
-                                <p className="mt-2 text-lg text-gray-600">Every tool you need to work with PDFs in one place</p>
+                <NavBar
+                    activeCategory={activeCategory}
+                    setActiveCategory={setActiveCategory}
+                    setSearchQuery={setSearchQuery}
+                    onOpenLogin={() => setShowLogin(true)}
+                    onOpenRegister={() => setShowRegister(true)}
+                    onToggleSettings={() => setShowSettings(prev=>!prev)}
+                    onToggleMobileMenu={() => setMobileMenuOpen(prev=>!prev)}
+                    mobileMenuOpen={mobileMenuOpen}
+                />
+                {mobileMenuOpen && (
+                    <div className="md:hidden bg-white border-t p-4 space-y-2">
+                        {Object.entries(MENU_TOOLS).map(([category, tools]) => (
+                            <div key={category}>
+                                <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider px-2 py-1">{category}</h3>
+                                {tools.map(tool => (
+                                    <a key={tool.id} href="#" onClick={(e)=>{e.preventDefault(); setCurrentToolId(tool.id); setMobileMenuOpen(false);}} className="block py-2 px-2 rounded-md hover:bg-red-50">{tool.name}</a>
+                                ))}
                             </div>
-                            <button 
-                                onClick={handleLogout}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
-                            >
-                                Logout
-                            </button>
-                        </div>
-                    </div>
-                </header>
-                
-                <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {ALL_TOOLS.map(tool => (
-                            <ToolCard key={tool.id} toolId={tool.id} onSelect={setCurrentToolId} />
                         ))}
                     </div>
+                )}
+                
+                <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <section className="text-center px-6 py-8 md:py-12 max-w-4xl mx-auto">
+                        <h1 className="text-3xl md:text-5xl font-extrabold mb-3 tracking-tight">Every tool you need to work with PDFs in one place</h1>
+                        <p className="text-base md:text-lg text-gray-600 mb-6 max-w-3xl mx-auto">Merge, split, compress, convert, rotate, unlock and watermark PDFs with just a few clicks.</p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                            <button onClick={() => setActiveCategory('all')} className="bg-red-500 text-white px-6 py-2 rounded-full font-semibold hover:bg-red-600 transition-all">Explore All PDF Tools</button>
+                        </div>
+                    </section>
+                    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {[
+                                ...MENU_TOOLS.organize,
+                                ...MENU_TOOLS.optimize,
+                                ...MENU_TOOLS.convert,
+                                ...MENU_TOOLS.edit,
+                                ...MENU_TOOLS.security
+                            ].slice(0,12).map((tool) => (
+                                <div key={tool.id} onClick={() => setCurrentToolId(tool.id)} className="bg-white rounded-xl shadow-md p-6 cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100">
+                                    <div className="text-red-500 mb-4">
+                                        <svg width="32" height="32" viewBox="0 0 24 24" stroke="currentColor" fill="none"><path d="M4 4h16v16H4z" strokeWidth="2"/><path d="M8 8h8M8 12h6" strokeWidth="2"/></svg>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-2">{tool.name}</h3>
+                                    <p className="text-gray-500 text-sm">Quickly run the {tool.name.toLowerCase()} tool.</p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                        {/* Sidebar removed per request; menu is in sticky header dropdowns */}
+                        
+                        <div className="col-span-4">
+                            <h2 className="text-2xl font-bold mb-6">PDF Tools</h2>
+                            
+                            {/* Enhanced PDF Tools Component with error boundary */}
+                            <div className="component-container">
+                                {(() => {
+                                    try {
+                                        return (
+                                            <EnhancedPDFTools 
+                                                allTools={ALL_TOOLS}
+                                                onSelectTool={setCurrentToolId}
+                                                onSuggestTool={(suggestion) => {
+                                                    console.log('Tool suggestion:', suggestion);
+                                                    alert(`Thank you for suggesting "${suggestion}". We'll consider adding this tool!`);
+                                                }}
+                                                searchQuery={searchQuery}
+                                                category="pdf"
+                                                featuredToolIds={['merge', 'split', 'compress', 'rotate']}
+                                            />
+                                        );
+                                    } catch (err) {
+                                        console.error('Error rendering EnhancedPDFTools:', err);
+                                        return (
+                                            <div className="error-message p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                                                Error rendering PDF Tools component. Please check the console for details.
+                                            </div>
+                                        );
+                                    }
+                                })()}
+                            </div>
+                        </div>
+                        <section className="md:col-span-3">
+                            <div className="bg-white border rounded-lg p-4 mb-6">
+                                <h3 className="text-sm font-semibold text-gray-800 mb-3">{t('quickActions')}</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {['merge','split','compress','rotate','watermark','page_numbers'].map(id => (
+                                        <button key={id} onClick={()=> setCurrentToolId(id)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                            {ALL_TOOLS.find(t => t.id===id)?.name || id}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Search bar and filters */}
+                            <div className="bg-white border rounded-lg p-4 mb-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    {/* Replace basic search with enhanced interactive search */}
+                                    <EnhancedSearchComponent />
+                                    <div className="flex gap-2 overflow-x-auto pb-1 w-full sm:w-auto" role="toolbar" aria-label="Filter tools">
+                                        <button 
+                                            onClick={() => setActiveCategory('all')}
+                                            className={`whitespace-nowrap px-3 py-1.5 text-sm border rounded-full transition-colors ${activeCategory === 'all' ? 'bg-red-500 text-white border-red-500' : 'hover:bg-gray-50 border-gray-300'}`}
+                                        >
+                                            All Tools
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveCategory('pdf')}
+                                            className={`whitespace-nowrap px-3 py-1.5 text-sm border rounded-full transition-colors ${activeCategory === 'pdf' ? 'bg-red-500 text-white border-red-500' : 'hover:bg-gray-50 border-gray-300'}`}
+                                        >
+                                            PDF Tools
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveCategory('enhanced')}
+                                            className={`whitespace-nowrap px-3 py-1.5 text-sm border rounded-full transition-colors ${activeCategory === 'enhanced' ? 'bg-red-500 text-white border-red-500' : 'hover:bg-gray-50 border-gray-300'}`}
+                                        >
+                                            Enhanced
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveCategory('ai')}
+                                            className={`whitespace-nowrap px-3 py-1.5 text-sm border rounded-full transition-colors ${activeCategory === 'ai' ? 'bg-red-500 text-white border-red-500' : 'hover:bg-gray-50 border-gray-300'}`}
+                                        >
+                                            AI Tools
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {filteredTools.length === 0 ? (
+                                <div className="text-center text-gray-600 bg-white border rounded-lg p-12 flex flex-col items-center justify-center gap-4">
+                                    <div>No tool found for "{searchQuery}".</div>
+                                    {searchQuery && (
+                                        <button
+                                            className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                                            onClick={() => alert(`Suggesting new tool: ${searchQuery}`)}
+                                        >
+                                            Add "{searchQuery}"
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', alignItems: 'stretch' }}>
+                                    {filteredTools.map(tool => (
+                                        <ToolCard key={tool.id} toolId={tool.id} onSelect={setCurrentToolId} />
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    </div>
                 </main>
+                <footer className="bg-gray-800 text-white mt-10">
+                    <div className="max-w-7xl mx-auto px-6 py-10">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                            <div>
+                                <h3 className="font-bold mb-4">I❤️PDF</h3>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Home</a>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Features</a>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Pricing</a>
+                            </div>
+                            <div>
+                                <h3 className="font-bold mb-4">SOLUTIONS</h3>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Business</a>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Education</a>
+                            </div>
+                            <div>
+                                <h3 className="font-bold mb-4">COMPANY</h3>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">About</a>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Contact Us</a>
+                            </div>
+                            <div>
+                                <h3 className="font-bold mb-4">HELP</h3>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">FAQ</a>
+                                <a href="#" className="block text-gray-300 hover:text-white text-sm py-1">Help Center</a>
+                            </div>
+                        </div>
+                        <div className="mt-10 border-t border-gray-700 pt-6 text-center text-sm text-gray-400">
+                            &copy; {new Date().getFullYear()} I❤️PDF. All Rights Reserved.
+                        </div>
+                    </div>
+                </footer>
+
+                {showSettings && (
+                    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" role="dialog" aria-modal="true">
+                        <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold">Settings</h3>
+                                <button onClick={()=> setShowSettings(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                            </div>
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-2">Teams</h4>
+                                    <ul className="space-y-1 mb-3">
+                                        {teams.map(t => <li key={t.id} className="text-sm text-gray-700">{t.name}</li>)}
+                                    </ul>
+                                    <div className="flex gap-2">
+                                        <input id="new-team-name" className="flex-1 px-3 py-2 border rounded" placeholder="New team name" />
+                                        <button onClick={()=>{
+                                            const input = document.getElementById('new-team-name');
+                                            const name = (input && input.value || '').trim();
+                                            if(!name) return;
+                                            setTeams(prev=> [...prev, { id: `t_${Date.now()}`, name }]);
+                                            input.value='';
+                                        }} className="px-3 py-2 bg-gray-800 text-white rounded">Create</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-2">Language</h4>
+                                    <select value={language} onChange={(e)=> setLanguage(e.target.value)} className="px-3 py-2 border rounded">
+                                        <option value="EN">English</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="mt-6 text-right">
+                                <button onClick={()=> setShowSettings(false)} className="px-4 py-2 border rounded">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Login Modal */}
+                <LoginModal
+                    visible={showLogin}
+                    onClose={() => setShowLogin(false)}
+                    onSubmit={handleLogin}
+                />
+                
+                {/* Register Modal */}
+                <RegisterModal
+                    visible={showRegister}
+                    onClose={() => setShowRegister(false)}
+                    onSubmit={handleRegister}
+                />
             </div>
         );
     }
@@ -1789,7 +2797,7 @@ function App() {
                         className="hidden"
                         onChange={(e) => handleFilesAdded(Array.from(e.target.files))}
                         multiple={currentTool.allowMultiple}
-                        accept=".pdf"
+                        accept=".pdf,.ipynb,.py,.docx,.pptx,.xlsx,.xls,.html,.htm,.jpg,.jpeg,.png,.gif"
                     />
 
                     {status === 'idle' && (
@@ -1812,6 +2820,66 @@ function App() {
                             {files.length > 0 && (
                                 <>
                                     <ToolOptions tool={currentTool} options={options} setOptions={setOptions} />
+                                    {files.length > 1 && (
+                                        <div className="relative mt-2">
+                                            <details>
+                                                <summary className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border rounded bg-white">Process <span className="text-gray-400">▼</span></summary>
+                                                <div className="absolute mt-2 w-48 bg-white border rounded shadow z-10">
+                                                    <button onClick={async ()=>{
+                                                        // Merge PDFs
+                                                        setStatus('processing');
+                                                        try {
+                                                            const formDataResults = await Promise.all(files.map(async (file)=>{
+                                                                const fd = new FormData(); fd.append('file', file);
+                                                                const r = await fetch(`${API_BASE_URL}/upload`, { method:'POST', body: fd, credentials:'include' });
+                                                                if(!r.ok) throw new Error(await r.text());
+                                                                return r.json();
+                                                            }));
+                                                            const keys = formDataResults.map(r=> r.key);
+                                                            const resp = await fetch(`${API_BASE_URL}/process`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ command: 'merge', file_keys: keys, params: {} }) });
+                                                            if(!resp.ok) throw new Error(await resp.text());
+                                                            const { task_id } = await resp.json();
+                                                            const poll = (taskId) => new Promise((resolve, reject)=>{
+                                                                const i = setInterval(async ()=>{
+                                                                    const s = await fetch(`${API_BASE_URL}/task/${taskId}`, { credentials:'include' });
+                                                                    if(!s.ok){ clearInterval(i); return reject(new Error(await s.text())); }
+                                                                    const d = await s.json();
+                                                                    if(d.status==='SUCCESS'){ clearInterval(i); setProgress(100); resolve(d.result); }
+                                                                }, 1500);
+                                                            });
+                                                            const taskRes = await poll(task_id);
+                                                            setResult(taskRes); setStatus('success');
+                                                        } catch(err){
+                                                            setErrorMessage(err.message||String(err)); setStatus('error');
+                                                        }
+                                                    }} className="block w-full text-left px-3 py-2 hover:bg-gray-50">Merge PDFs</button>
+                                                    <button onClick={async ()=>{
+                                                        if(files.length<1) return;
+                                                        setStatus('processing');
+                                                        try {
+                                                            const fd = new FormData(); fd.append('file', files[0]);
+                                                            const up = await fetch(`${API_BASE_URL}/upload`, { method:'POST', body: fd, credentials:'include' });
+                                                            if(!up.ok) throw new Error(await up.text());
+                                                            const { key } = await up.json();
+                                                            const resp = await fetch(`${API_BASE_URL}/process`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ command: 'compress', file_keys: [key], params: {} }) });
+                                                            if(!resp.ok) throw new Error(await resp.text());
+                                                            const { task_id } = await resp.json();
+                                                            const poll = (taskId) => new Promise((resolve, reject)=>{
+                                                                const i = setInterval(async ()=>{
+                                                                    const s = await fetch(`${API_BASE_URL}/task/${taskId}`, { credentials:'include' });
+                                                                    if(!s.ok){ clearInterval(i); return reject(new Error(await s.text())); }
+                                                                    const d = await s.json();
+                                                                    if(d.status==='SUCCESS'){ clearInterval(i); setProgress(100); resolve(d.result); }
+                                                                }, 1500);
+                                                            });
+                                                            const taskRes = await poll(task_id);
+                                                            setResult(taskRes); setStatus('success');
+                                                        } catch(err){ setErrorMessage(err.message||String(err)); setStatus('error'); }
+                                                    }} className="block w-full text-left px-3 py-2 hover:bg-gray-50">Compress</button>
+                                                </div>
+                                            </details>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={handleSubmit}
                                         className="w-full mt-8 py-4 bg-red-500 text-white text-lg font-bold rounded-lg hover:bg-red-600 transition-colors shadow-md"
@@ -1824,13 +2892,27 @@ function App() {
                     )}
 
                     {['uploading', 'processing'].includes(status) && (
-                         <div className="text-center py-10">
-                            <h2 className="text-2xl font-semibold text-gray-800 mb-4 capitalize">{status}...</h2>
-                             <div className="w-full bg-gray-200 rounded-full h-4">
-                                 <div className="bg-red-500 h-4 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                         <>
+                             <div className="text-center py-10">
+                                 <h2 className="text-2xl font-semibold text-gray-800 mb-4 capitalize">{status}...</h2>
+                                 <div className="w-full bg-gray-200 rounded-full h-4" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} role="progressbar">
+                                     <div className="bg-red-500 h-4 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                 </div>
+                                 <p className="mt-2 text-gray-600">{Math.round(progress)}%</p>
                              </div>
-                             <p className="mt-2 text-gray-600">{Math.round(progress)}%</p>
-                         </div>
+
+                             {/* Modal overlay */}
+                             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40" role="dialog" aria-modal="true" aria-label="Processing">
+                                 <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                                     <h3 className="text-lg font-semibold mb-2 capitalize">{status}</h3>
+                                     <p className="text-sm text-gray-600 mb-4">Please wait while we process your files.</p>
+                                     <div className="w-full bg-gray-200 rounded-full h-3" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} role="progressbar">
+                                         <div className="bg-red-500 h-3 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                     </div>
+                                     <p className="mt-2 text-gray-600 text-right text-sm">{Math.round(progress)}%</p>
+                                 </div>
+                             </div>
+                         </>
                     )}
 
                     {status === 'success' && result && (
@@ -1865,24 +2947,68 @@ function App() {
                           <div className="text-center py-10">
                               <h2 className="text-2xl font-bold text-red-600 mb-4">An Error Occurred</h2>
                               <p className="text-gray-700 bg-red-100 p-4 rounded-md">{errorMessage}</p>
-                              <button onClick={handleRetry} className="mt-6 px-6 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700 transition-colors">
-                                  Try Again
-                              </button>
+                              
+                              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <button onClick={handleRetry} className="px-6 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700 transition-colors">
+                                      Try Again
+                                  </button>
+                                  
+                                  <button 
+                                      onClick={() => {
+                                          // Try with a simpler tool
+                                          if (files.length > 0) {
+                                              setCurrentToolId('compress');
+                                              setOptions({quality: 'medium'});
+                                              setStatus('idle');
+                                              setErrorMessage('');
+                                          }
+                                      }} 
+                                      className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition-colors"
+                                  >
+                                      Try Simple Compression
+                                  </button>
+                              </div>
+                              
+                              <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-md p-4 text-left">
+                                  <h3 className="font-medium text-yellow-800 mb-2">Troubleshooting Tips:</h3>
+                                  <ul className="list-disc pl-5 text-sm text-yellow-700 space-y-1">
+                                      <li>Check if your file format is supported</li>
+                                      <li>Try with a smaller file (under 10MB)</li>
+                                      <li>The server might be experiencing high load</li>
+                                      <li>Check your internet connection</li>
+                                      <li>Try again in a few minutes</li>
+                                  </ul>
+                              </div>
                           </div>
                     )}
                 </div>
             </div>
+            
+            {/* Login Modal */}
+            <LoginModal
+                visible={showLogin}
+                onClose={() => setShowLogin(false)}
+                onSubmit={handleLogin}
+            />
+            
+            {/* Register Modal */}
+            <RegisterModal
+                visible={showRegister}
+                onClose={() => setShowRegister(false)}
+                onSubmit={handleRegister}
+            />
         </div>
     );
 }
 
 // Authentication Components
-const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, onMobileLogin }) => {
-    const [formData, setFormData] = React.useState({ username: '', password: '' });
+const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, onMobileLogin, initialData }) => {
+    const [formData, setFormData] = React.useState(initialData || { username: '', password: '' });
+    const [rememberMe, setRememberMe] = React.useState(!!localStorage.getItem('rememberUser'));
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onLogin(formData);
+        onLogin({ ...formData, rememberMe });
     };
 
     return (
@@ -1909,6 +3035,21 @@ const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, onMobileLogi
                         required
                     />
                 </div>
+                
+                <div className="flex items-center">
+                    <input 
+                        id="remember-me" 
+                        name="remember-me" 
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="h-4 w-4 text-red-500 focus:ring-red-400 border-gray-300 rounded" 
+                    />
+                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                        Remember me
+                    </label>
+                </div>
+                
                 <button
                     type="submit"
                     className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors"
@@ -2326,16 +3467,129 @@ const MobileLoginView = ({ onBackToLogin, onLoginSuccess }) => {
 // Existing Components
 const ToolCard = ({ toolId, onSelect }) => {
     const tool = ALL_TOOLS.find(t => t.id === toolId);
+    const [isImageLoaded, setIsImageLoaded] = React.useState(false);
+
+    // Lazy load image when component is visible
+    React.useEffect(() => {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setIsImageLoaded(true);
+                    observer.disconnect();
+                }
+            });
+        }, { rootMargin: '200px' });
+        
+        const currentRef = document.getElementById(`tool-card-${toolId}`);
+        if (currentRef) {
+            observer.observe(currentRef);
+        }
+        
+        return () => {
+            if (currentRef) {
+                observer.unobserve(currentRef);
+            }
+        };
+    }, [toolId]);
+    
     return (
         <div 
+            id={`tool-card-${toolId}`}
             onClick={() => onSelect(toolId)}
-            className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border border-gray-200 hover:border-red-300"
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelect(toolId);
+                }
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={`Open ${tool.name}`}
+            className="bg-white rounded-lg shadow-md p-5 cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-red-300 hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-300"
         >
-            <div className="text-red-500 mb-4 flex justify-center">
-                {renderIcon(tool.icon, 48)}
+            <div className="flex items-center mb-3">
+                <div className="bg-red-50 text-red-500 p-3 rounded-lg mr-3 flex-shrink-0">
+                    {isImageLoaded && renderIcon(tool.icon, 24)}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">{tool.name}</h3>
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">{tool.name}</h3>
-            <p className="text-gray-600 text-sm text-center">{tool.description}</p>
+            <p className="text-gray-600 text-sm">{tool.description}</p>
+            {tool.allowMultiple && (
+                <span className="inline-block mt-2 text-xs font-medium bg-blue-50 text-blue-600 rounded-full px-2 py-0.5">
+                    Supports multiple files
+                </span>
+            )}
+            <div className="mt-3 text-right">
+                <span className="inline-flex items-center text-sm font-medium text-red-500 hover:text-red-600">
+                    Use tool
+                    <svg className="ml-1 w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                </span>
+            </div>
+        </div>
+    );
+};
+
+// Landing navigation data (provided structure)
+const MENU_TOOLS = {
+    organize: [
+        { id: 'merge', name: 'Merge PDF' },
+        { id: 'split', name: 'Split PDF' },
+        { id: 'organize', name: 'Organize PDF' },
+        { id: 'rotate', name: 'Rotate PDF' },
+    ],
+    optimize: [
+        { id: 'compress', name: 'Compress PDF' },
+        { id: 'repair', name: 'Repair PDF' },
+    ],
+    convert: [
+        { id: 'pdf_to_word', name: 'PDF to Word' },
+        { id: 'pdf_to_powerpoint', name: 'PDF to PowerPoint' },
+        { id: 'pdf_to_excel', name: 'PDF to Excel' },
+        { id: 'pdf_to_jpg', name: 'PDF to JPG' },
+        { id: 'word_to_pdf', name: 'Word to PDF' },
+        { id: 'powerpoint_to_pdf', name: 'PowerPoint to PDF' },
+        { id: 'excel_to_pdf', name: 'Excel to PDF' },
+        { id: 'jpg_to_pdf', name: 'JPG to PDF' },
+    ],
+    edit: [
+        { id: 'add_page_numbers', name: 'Add Page Numbers' },
+        { id: 'watermark', name: 'Add Watermark' },
+        { id: 'edit_pdf', name: 'Edit PDF' },
+    ],
+    security: [
+        { id: 'unlock', name: 'Unlock PDF' },
+        { id: 'protect', name: 'Protect PDF' },
+        { id: 'sign', name: 'Sign PDF' },
+    ],
+};
+
+const NavDropdown = ({ title, items, onItemClick }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    return (
+        <div className="relative" onMouseLeave={() => setIsOpen(false)}>
+            <button
+                onMouseEnter={() => setIsOpen(true)}
+                className="text-sm font-medium text-gray-700 hover:text-red-500 flex items-center gap-1 transition-colors"
+            >
+                <span>{title}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white border rounded-md shadow-lg p-2 z-50">
+                    {items.map((item) => (
+                        <a
+                            key={item.id}
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); onItemClick(item.id); }}
+                            className="block px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-red-50 hover:text-red-600"
+                        >
+                            {item.name}
+                        </a>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -2491,7 +3745,8 @@ const Dropzone = ({ onFilesAdded, tool, onSelectClick }) => {
             className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg transition-colors duration-200 ${isDragging ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-white'}`}
         >
             <div className="text-red-500 mb-4">{renderIcon(tool.icon, 48)}</div>
-            <p className="text-xl font-semibold text-gray-700">Drop PDF files here</p>
+            <p className="text-xl font-semibold text-gray-700">Drop files here</p>
+            <p className="text-gray-500 mt-1">PDF, Jupyter notebooks, Python, Office documents, images, etc.</p>
             <p className="text-gray-500 mt-1">or</p>
             <button onClick={onSelectClick} className="mt-4 px-6 py-2 bg-red-500 text-white font-semibold rounded-md cursor-pointer hover:bg-red-600 transition-colors">
                 Select Files
@@ -2501,4 +3756,30 @@ const Dropzone = ({ onFilesAdded, tool, onSelectClick }) => {
 };
 
 // Mount the React application
-ReactDOM.render(<App />, document.getElementById('root'));
+// Create a root using the new React 18 API
+const rootElement = document.getElementById('root');
+const root = ReactDOM.createRoot(rootElement);
+root.render(<App />);
+
+// Optional PropTypes (only define if available globally)
+if (window && window.PropTypes) {
+    const { PropTypes } = window;
+    ToolCard.propTypes = {
+        toolId: PropTypes.string.isRequired,
+        onSelect: PropTypes.func.isRequired,
+    };
+    FileItem.propTypes = {
+        file: PropTypes.object.isRequired,
+        onRemove: PropTypes.func.isRequired,
+    };
+    ToolOptions.propTypes = {
+        tool: PropTypes.object.isRequired,
+        options: PropTypes.object.isRequired,
+        setOptions: PropTypes.func.isRequired,
+    };
+    Dropzone.propTypes = {
+        onFilesAdded: PropTypes.func.isRequired,
+        tool: PropTypes.object.isRequired,
+        onSelectClick: PropTypes.func.isRequired,
+    };
+}

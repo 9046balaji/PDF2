@@ -4,19 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PDF Tool - Professional Edition</title>
-    <!-- Load Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load React libraries -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Load Babel to compile JSX in the browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Production-ready Tailwind CSS via CDN (for simplicity) -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Load React libraries (production versions) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Load PropTypes for component validation -->
+    <script src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
   </head>
   <body>
     <!-- This is the root element where our React app will be mounted -->
     <div id="root"></div>
 
-    <!-- Load the React app (compiled in-browser via Babel) and mount it -->
-    <script type="text/babel" data-presets="react,env" src="app.js?v=1"></script>
+    <!-- Load our bundled JavaScript (pre-compiled) -->
+    <script src="dist/enhancedPDFTools.bundle.js"></script>
+    <script src="dist/enhancedSearchComponent.bundle.js"></script>
+    <script src="dist/app.bundle.js"></script>
   </body>
 </html>

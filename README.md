@@ -122,10 +122,11 @@ PDF2/
 - **Configuration**: `.gitignore` and dependencies
 
 ### **Files Ignored by Git**
-- **Sensitive Data**: `BIN/` folder contains environment files and session data
+- **Sensitive Data**: `BIN/` folder, `.env` files, and credential files
 - **Runtime Files**: `uploads/`, `processed/`, `instance/` directories
-- **Development Files**: Virtual environments, logs, temporary files
+- **Development Files**: Virtual environments, logs, temporary files, test results
 - **Non-Essential**: Standalone tools, enhanced dependencies, Docker files
+- **Sensitive Directories**: `misc/`, `archive/misc/` containing example configurations
 
 ## 🧪 Quickstart (SQLite / Dev)
 ```bash
@@ -138,10 +139,23 @@ source venv/bin/activate  # macOS/Linux
 # Install minimal deps
 pip install -r requirements.txt
 
+# Set up environment variables (see CONFIGURATION.md for details)
+# Create a .env file in the project root or set environment variables
+
 # Run the app (SQLite DB auto-initializes)
 python app.py
 # Visit http://localhost:5000
 ```
+
+## 🔐 **Configuration**
+
+This project uses environment variables for secure configuration. See [CONFIGURATION.md](CONFIGURATION.md) for detailed instructions on:
+
+- Setting up environment variables
+- Creating a `.env` file for development
+- Docker environment configuration
+- Available configuration options
+- Security best practices
 
 ## 🛠️ **Installation & Setup**
 
@@ -171,7 +185,12 @@ pip install -r requirements.txt
 # Optional: switch to advanced stack
 # pip install -r requirements-enhanced.txt
 
-# Environment (defaults exist for SQLite dev)
+# Create a .env file (see CONFIGURATION.md for details)
+# Example:
+echo FLASK_SECRET_KEY=development_only_key > .env
+echo API_KEY=development_only_api_key >> .env
+
+# Environment settings
 set FLASK_APP=app.py
 set FLASK_ENV=development
 
@@ -181,9 +200,32 @@ python app.py
 
 ### **Frontend Setup**
 ```bash
-# If you want to build separately with npm
-yarn install || npm install
+# Build the frontend assets for production
+# On Windows:
+build_frontend.bat
+
+# On Linux/macOS:
+./build_frontend.sh
+
+# Or manually:
+cd static
+npm install
 npm run build
+```
+
+This will:
+1. Install all required dependencies
+2. Transpile JSX to JavaScript
+3. Bundle the files for production
+4. Output the result to the `static/dist` directory
+
+After building, switch to production mode by renaming:
+```bash
+# Backup the development version
+mv static/index.html static/index.development.html
+
+# Use the production version
+mv static/index.production.html static/index.html
 ```
 
 ## 📚 **API Endpoints**
@@ -231,11 +273,29 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/0
 # Security
 FLASK_SECRET_KEY=your_secret_key
 FLASK_DEBUG=true
+API_KEY=your_api_key_here
+S3_SECRET_KEY=your_s3_secret_here
 
 # File Storage
 UPLOADS_FOLDER=./uploads
 PROCESSED_FOLDER=./processed
 MAX_CONTENT_LENGTH_MB=50
+```
+
+### **Using config_loader.py**
+The application uses `config_loader.py` to safely load environment variables:
+
+```python
+# Import the helpers
+from config_loader import get_secret_key, get_database_url, get_api_key
+
+# Use in your application with secure fallbacks
+app.config['SECRET_KEY'] = get_secret_key()
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
+
+# Validate API requests securely
+if api_key != get_api_key():
+    return jsonify({"error": "Invalid API key"}), 403
 ```
 
 ## ❗ Error Handling & Troubleshooting
@@ -340,6 +400,10 @@ pytest
 - Input validation and file size limits
 - Path sanitization for downloads
 - Authenticated access for user data
+- Environment variable management with secure fallbacks
+- Credentials stored only in `.env` files (excluded from version control)
+- Production configuration checks to prevent using development defaults
+- Secure Docker configuration with placeholder credentials
 
 ## 📈 **Performance**
 
