@@ -213,6 +213,21 @@ tests/test_upload_download.py
 tests/test_upload_fix.py
 tests/verify_five_tests.py
 
+# Static directory specifics
+static/.gitignore
+static/node_modules/
+static/dist/
+static/*.bundle.js
+static/*.bundle.js.map
+static/*.LICENSE.txt
+static/index.html.dev
+static/.babelrc
+static/*.md
+static/BUILD.md
+static/FRONTEND.md
+static/test/
+static/package-lock.json
+
 # Docker
 .dockerignore
 docker-compose.override.yml
