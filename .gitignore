@@ -29,6 +29,16 @@ ENV/
 env.bak/
 venv.bak/
 
+# Test Results
+results/
+*_result*.txt
+*_results*.txt
+test_output*.txt
+test-output/
+.coverage
+htmlcov/
+.pytest_cache/
+
 # Environment variables
 .env
 .env.local
@@ -37,6 +47,17 @@ venv.bak/
 .env.production.local
 .env.*
 !.env.example
+.flaskenv
+.grok_api_key
+.twilio_auth
+.auth_tokens
+
+# Authentication and session files
+flask_session/
+.session/
+auth_config.json
+*jwt_key*
+*oauth*credentials*
 
 # IDE
 .vscode/
@@ -58,10 +79,21 @@ Thumbs.db
 *.log
 logs/
 .run_log.txt
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+**/*_log.txt
+**/log_*.txt
 
 # Temporary files
 *.tmp
 *.temp
+.temp/
+tmp/
+temp/
+*.bak
+*.swp
+.cache/
 
 # Database
 *.db
@@ -75,11 +107,47 @@ processed/
 # Instance folder (contains database and runtime data)
 instance/
 
+# Sensitive directories and files
+misc/
+archive/misc/
+BIN/
+READMI_FILES/
+.cursorrules
+
+# Credentials and keys
+*credential*
+*secret*
+*apikey*
+*password*
+*token*
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*grok_api*
+*twilio_auth*
+*azure_*key*
+*aws_*key*
+*google_*key*
+service_account.json
+
 # Non-required files (not used in current application)
 # Standalone tools and utilities
-sdk.py
-pdf_tool.py
 train_classifier.py
+bin2/
+test_outputs/
+archive/
+build_frontend.bat
+config_loader.py
+conftest.py
+notebook_utils.py
+pytest.ini
+
+# Include these files in Git tracking
+# !sdk.py
+# !pdf_tool.py
 
 # Enhanced dependencies (not currently used)
 requirements-enhanced.txt
@@ -87,6 +155,9 @@ requirements-enhanced.txt
 # Documentation files (keep only main README.md)
 READMI_FILES/
 *.md
+*/*.md
+*/FRONTEND.md
+*/BUILD.md
 !README.md
 !LICENSE
 
@@ -116,9 +187,118 @@ coverage.xml
 *.cover
 .hypothesis/
 
+# Test files
+tests/__init__.py
+tests/check_four_tests.py
+tests/check_pdf_usages.py
+tests/find_calls.py
+tests/find_pdf_usages.py
+tests/run_all_tests.py
+tests/run_tests.py
+tests/run_unlock_test.py
+tests/test_all_uploads.py
+tests/test_all_uploads_with_auth.py
+tests/test_backend_runner.py
+tests/test_conversion_functions.py
+tests/test_file.py
+tests/test_health.py
+tests/test_health_direct.py
+tests/test_health_endpoint.py
+tests/test_health_retry.py
+tests/test_health_server.py
+tests/test_pdf_processor.py
+tests/test_runner.py
+tests/test_simple.py
+tests/test_upload_download.py
+tests/test_upload_fix.py
+tests/verify_five_tests.py
+
 # Docker
 .dockerignore
+docker-compose.override.yml
+docker.env
 
 # Local development files
 improvemets.txt
 to_do.txt
+notes.txt
+*.todo
+*.draft
+local_settings.json
+
+# Backup files
+*.bak
+*.backup
+*~
+*.swp
+*.old
+*.orig
+*.rej
+
+# Dependency directories
+node_modules/
+jspm_packages/
+bower_components/
+
+# Media files and archives
+*.mp4
+*.avi
+*.mov
+*.mp3
+*.wav
+*.zip
+*.rar
+*.tar
+*.tar.gz
+*.7z
+
+# Compiled source
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.out
+
+# Generated files
+*.generated.*
+*-generated.*
+generated/
+
+# Sensitive configurations
+local_settings.py
+local_config.py
+local.py
+
+# SQLite databases (explicit path)
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+
+# Frontend build specific patterns
+static/node_modules/
+static/dist/
+static/*.bundle.js
+static/*.bundle.js.map
+static/*.LICENSE.txt
+static/*.md
+static/BUILD.md
+static/FRONTEND.md
+static/test/
+static/package-lock.json
+
+# Keep only essential frontend files
+!static/app.js
+!static/EnhancedPDFTools.js
+!static/EnhancedSearchComponent.js
+!static/webpack.config.js
+!static/package.json
+!static/build_frontend.bat
+!static/index.html
+
+# Frontend build specific patterns
+static/node_modules/
+static/dist/
+static/*.bundle.js
+static/*.bundle.js.map
+static/*.LICENSE.txt
