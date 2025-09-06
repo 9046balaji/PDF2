@@ -1,5 +1,3 @@
-````markdown
-
 # Enhanced PDF Processing Tool
 
 A comprehensive, enterprise-grade PDF processing application with AI-powered features, advanced document manipulation, and robust error handling.
@@ -245,7 +243,6 @@ mv static/index.production.html static/index.html
 - `POST /advanced/chat-pdf` - AI-powered PDF chat
 - `POST /advanced/analyze-pdf` - Document analysis
 - `POST /advanced/classify-document` - Document classification
-- `POST /advanced/workflow` - AI workflow automation
 - `GET /api/task-status/<id>` - AI task status
 
 ### **Authentication**
@@ -422,5 +419,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ for the PDF processing community**
-
-````
