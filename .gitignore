@@ -31,6 +31,7 @@ venv.bak/
 
 # Project specific
 run/
+samples/
 
 # Test Results
 results/
