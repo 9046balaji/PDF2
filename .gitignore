@@ -187,8 +187,22 @@ coverage.xml
 *.cover
 .hypothesis/
 
-# Test files
+# Test files - exclude entire tests directory by default
+tests/
+# But include these essential test files (examples - customize as needed)
 tests/__init__.py
+tests/test_app.py
+tests/test_pdf_processor.py
+tests/test_merge_pdf.py
+tests/test_split_pdf.py
+tests/test_compress_pdf.py
+tests/test_rotate_pdf.py
+tests/test_watermark_pdf.py
+tests/test_header_footer_pdf.py
+tests/test_page_numbers_pdf.py
+tests/README.md
+
+# Exclude specific test files that shouldn't be in version control
 tests/check_four_tests.py
 tests/check_pdf_usages.py
 tests/find_calls.py
@@ -206,12 +220,15 @@ tests/test_health_direct.py
 tests/test_health_endpoint.py
 tests/test_health_retry.py
 tests/test_health_server.py
-tests/test_pdf_processor.py
 tests/test_runner.py
 tests/test_simple.py
 tests/test_upload_download.py
 tests/test_upload_fix.py
 tests/verify_five_tests.py
+
+# Also exclude test-related JSON files
+*_test_report.json
+*_test_results.json
 
 # Static directory specifics
 static/.gitignore
@@ -279,6 +296,14 @@ bower_components/
 *.generated.*
 *-generated.*
 generated/
+
+# Jupyter notebooks and test images
+*.ipynb
+*.png
+test-*.png
+
+# Agent bin directory (for non-permanent file deletion)
+.agent_bin/
 
 # Sensitive configurations
 local_settings.py
