@@ -29,6 +29,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Project specific
+run/
+
 # Test Results
 results/
 *_result*.txt
