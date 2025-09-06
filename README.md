@@ -1,3 +1,4 @@
+````markdown
 
 # Enhanced PDF Processing Tool
 
@@ -186,9 +187,7 @@ pip install -r requirements.txt
 # pip install -r requirements-enhanced.txt
 
 # Create a .env file (see CONFIGURATION.md for details)
-# Example:
-echo FLASK_SECRET_KEY=development_only_key > .env
-echo API_KEY=development_only_api_key >> .env
+# Set up your environment variables securely
 
 # Environment settings
 set FLASK_APP=app.py
@@ -263,7 +262,7 @@ mv static/index.production.html static/index.html
 # Database
 # For SQLite (default): no env needed
 # For Postgres (optional):
-DATABASE_URL=postgresql://user:pass@localhost/pdf_tool
+DATABASE_URL=postgresql://<username>:<password>@localhost/<database_name>
 
 # Redis / Celery (optional)
 REDIS_URL=redis://localhost:6379/0
@@ -271,10 +270,10 @@ CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/0
 
 # Security
-FLASK_SECRET_KEY=your_secret_key
+FLASK_SECRET_KEY=<your_secret_key>
 FLASK_DEBUG=true
-API_KEY=your_api_key_here
-S3_SECRET_KEY=your_s3_secret_here
+API_KEY=<your_api_key>
+S3_SECRET_KEY=<your_s3_secret>
 
 # File Storage
 UPLOADS_FOLDER=./uploads
@@ -302,35 +301,29 @@ if api_key != get_api_key():
 
 ### Global Behavior
 - Backend uses consistent JSON errors on API-like routes and returns SPA page for regular navigation.
-- Flask-Login unauthorized requests to API/SPA paths return `{ "error": "Unauthorized" }` with `401`.
-- Frontend detects auth using `/auth/check` and falls back to `/profile` automatically.
+- Authentication errors return appropriate HTTP status codes.
+- Frontend handles authentication status appropriately.
 
 ### Upload Errors
-- "No file part" → Ensure form field name is `file` and request is multipart/form-data.
-- "No selected file" → Filename is empty; pick a file.
-- "Invalid file type. Only .pdf is allowed" → Only `.pdf` accepted in core `/upload`.
-- `413 Request Entity Too Large` → File size exceeds `MAX_CONTENT_LENGTH_MB` (default 50MB).
+- Ensure form field name is `file` and request is multipart/form-data.
+- Select a valid file for upload.
+- File type restrictions apply based on the endpoint.
+- File size limits are enforced based on configuration.
 
 ### Enhanced Routes (file_keys)
-- Enhanced endpoints require resolving `file_keys` to paths. If you see:
-  - "File not found" → The DB record for that `file_key` is missing for the user.
-  - "File not found on disk" → The file’s path is missing under `uploads/`.
+- Enhanced endpoints require resolving `file_keys` to paths.
+- Proper error messages are provided when files are not found or accessible.
 
 ### Notebook/Code Conversions
-- `.ipynb` → PDF/DOCX require external tools:
-  - `jupyter` (nbconvert), `pandoc`, and for PDF often `LaTeX` (`pdflatex`).
-- `.py` → PDF/DOCX requires `pygments` and `pdflatex`/`pandoc`.
-- Errors like "command not available" mean you must install the tool and ensure it’s on PATH.
+- External tools are required for certain conversions.
+- Install necessary dependencies and ensure they're on your PATH.
 
 ### Common Frontend Issues
-- React error "Element type is invalid" was fixed by safe icon rendering.
-- If auth appears to "log out" after login:
-  - Ensure cookies are allowed.
-  - Check `/auth/check` (should be 200 after login) or fallback `/profile`.
+- Ensure cookies are enabled for authentication to persist.
+- Check browser console for any JavaScript errors.
 
 ### Logging
-- Backend logs detailed exceptions for `/login` and `/register` with stack traces.
-- Upload route logs the reason for failures (missing field, empty filename, invalid type).
+- Application logs provide detailed information for troubleshooting.
 
 ## 📊 **Usage Examples**
 
@@ -368,7 +361,7 @@ result = processor.excel_to_pdf('spreadsheet.xlsx', 'output.pdf')
 result = processor.watermark_pdf('input.pdf', 'watermarked.pdf', 'Confidential')
 
 # Protect with password
-result = processor.protect_pdf('input.pdf', 'protected.pdf', 'user123', 'owner456')
+result = processor.protect_pdf('input.pdf', 'protected.pdf', '<user_password>', '<owner_password>')
 
 # Execute workflow
 operations = [
@@ -403,7 +396,7 @@ pytest
 - Environment variable management with secure fallbacks
 - Credentials stored only in `.env` files (excluded from version control)
 - Production configuration checks to prevent using development defaults
-- Secure Docker configuration with placeholder credentials
+- Secure Docker configuration with non-sensitive placeholders
 
 ## 📈 **Performance**
 
@@ -429,3 +422,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ for the PDF processing community**
+
+````
