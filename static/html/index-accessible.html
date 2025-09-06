@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- CSRF Token for security -->
+    <meta name="csrf-token" content="{{ csrf_token }}" id="csrf-token-meta">
+    <title>PDF Tool - Professional Edition</title>
+    <!-- Production-ready Tailwind CSS via CDN (for simplicity) -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Load React libraries (production versions) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Load PropTypes for component validation -->
+    <script src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
+    
+    <!-- Custom styles for accessibility improvements -->
+    <style>
+      /* Focus indicators for accessibility */
+      *:focus-visible {
+        outline: 2px solid #4299e1;
+        outline-offset: 2px;
+      }
+      
+      /* Skip to content link - visible on focus for keyboard users */
+      .skip-to-content {
+        position: absolute;
+        top: -40px;
+        left: 0;
+        background: #4299e1;
+        color: white;
+        padding: 8px;
+        z-index: 100;
+        transition: top 0.2s ease;
+      }
+      
+      .skip-to-content:focus {
+        top: 0;
+      }
+      
+      /* For screen readers only */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+      
+      /* Mobile text size adjustment as per your responsive.css */
+      @media screen and (max-width: 768px) {
+        html, body {
+          text-size-adjust: 100%;
+          -moz-text-size-adjust: 100%;
+          -webkit-text-size-adjust: 100%;
+          -ms-text-size-adjust: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Skip to content link for keyboard users -->
+    <a href="#main-content" class="skip-to-content">Skip to content</a>
+    
+    <!-- Accessible navigation container -->
+    <nav id="main-navigation" class="bg-white shadow-md">
+      <div class="relative flex flex-wrap items-center justify-between p-4">
+        <!-- Brand logo -->
+        <div class="flex items-center flex-shrink-0 mr-6">
+          <a href="/" class="text-xl font-bold text-blue-600 hover:text-blue-800">
+            PDF Tool
+          </a>
+        </div>
+        
+        <!-- Mobile menu button - With proper accessibility attributes -->
+        <button 
+          id="mobile-menu-toggle"
+          class="md:hidden p-2 rounded border border-gray-300 text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+          aria-expanded="false" 
+          aria-controls="mobile-menu-content"
+          aria-label="Toggle navigation menu">
+          <span aria-hidden="true" class="block text-xl">☰</span>
+          <span class="sr-only">Menu</span>
+        </button>
+        
+        <!-- Navigation menu -->
+        <div id="mobile-menu-content" class="w-full hidden md:flex md:items-center md:w-auto" aria-labelledby="mobile-menu-toggle">
+          <ul class="md:flex flex-col md:flex-row mt-4 md:mt-0 md:space-x-4">
+            <li>
+              <a href="/" class="block px-4 py-2 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-600" aria-current="page">
+                Home
+              </a>
+            </li>
+            <li>
+              <a href="/tools" class="block px-4 py-2 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-600">
+                PDF Tools
+              </a>
+            </li>
+            <li>
+              <a href="/upload" class="block px-4 py-2 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-600">
+                Upload
+              </a>
+            </li>
+            <li>
+              <a href="/help" class="block px-4 py-2 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-600">
+                Help
+              </a>
+            </li>
+            <li class="md:ml-4 mt-4 md:mt-0">
+              <div id="pdf-search" class="search-container relative"></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Main content area with ID for skip link target -->
+    <main id="main-content" class="container mx-auto p-4">
+      <div id="root"></div>
+    </main>
+    
+    <!-- Footer with accessibility information -->
+    <footer class="bg-gray-100 p-6 mt-8">
+      <div class="container mx-auto">
+        <div class="flex flex-wrap justify-between">
+          <div class="w-full md:w-1/3 mb-6 md:mb-0">
+            <h2 class="text-lg font-bold mb-4">PDF Tool</h2>
+            <p>Professional PDF processing tools for all your document needs.</p>
+          </div>
+          <div class="w-full md:w-1/3 mb-6 md:mb-0">
+            <h2 class="text-lg font-bold mb-4">Quick Links</h2>
+            <ul>
+              <li class="mb-2"><a href="/tools" class="hover:text-blue-600">All Tools</a></li>
+              <li class="mb-2"><a href="/privacy" class="hover:text-blue-600">Privacy Policy</a></li>
+              <li class="mb-2"><a href="/accessibility" class="hover:text-blue-600">Accessibility Statement</a></li>
+            </ul>
+          </div>
+          <div class="w-full md:w-1/3">
+            <h2 class="text-lg font-bold mb-4">Contact</h2>
+            <p>Have questions? <a href="/contact" class="text-blue-600 hover:underline">Contact us</a>.</p>
+          </div>
+        </div>
+        <div class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-600">
+          <p>&copy; 2025 PDF Tool. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Load our bundled JavaScript (pre-compiled) -->
+    <script src="/static/dist/enhancedPDFTools.bundle.js"></script>
+    <script src="/static/dist/enhancedSearchComponent.bundle.js"></script>
+    <script src="/static/js/AccessibleNavigation.js"></script>
+    <script src="/static/dist/app.bundle.js"></script>
+    
+    <!-- Initialize accessible navigation -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Mobile menu toggle functionality
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const mobileMenuContent = document.getElementById('mobile-menu-content');
+        
+        if (mobileMenuToggle && mobileMenuContent) {
+          mobileMenuToggle.addEventListener('click', function() {
+            const expanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
+            
+            // Toggle aria-expanded
+            mobileMenuToggle.setAttribute('aria-expanded', !expanded);
+            
+            // Toggle menu visibility
+            if (expanded) {
+              mobileMenuContent.classList.add('hidden');
+              mobileMenuToggle.querySelector('[aria-hidden="true"]').textContent = '☰';
+              mobileMenuToggle.querySelector('.sr-only').textContent = 'Menu';
+            } else {
+              mobileMenuContent.classList.remove('hidden');
+              mobileMenuToggle.querySelector('[aria-hidden="true"]').textContent = '✕';
+              mobileMenuToggle.querySelector('.sr-only').textContent = 'Close Menu';
+            }
+          });
+          
+          // Close menu when clicking outside
+          document.addEventListener('click', function(event) {
+            const isExpanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
+            const nav = document.getElementById('main-navigation');
+            
+            if (isExpanded && !nav.contains(event.target)) {
+              mobileMenuToggle.click();
+            }
+          });
+          
+          // Close menu with ESC key
+          document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && mobileMenuToggle.getAttribute('aria-expanded') === 'true') {
+              mobileMenuToggle.click();
+            }
+          });
+        }
+        
+        // Initialize search component if available
+        if (window.EnhancedSearchComponent) {
+          new EnhancedSearchComponent({
+            selector: '#pdf-search',
+            debounceTime: 300,
+            placeholderText: 'Search PDF tools...',
+            // Ensure proper behavior for keyboard navigation and form submission
+            onSelect: function(item) {
+              if (item && item.url) {
+                window.location.href = item.url;
+              }
+            },
+            onSearch: function(query) {
+              if (query && query.length > 0) {
+                console.log('Search query:', query);
+              }
+            }
+          });
+        }
+      });
+    </script>
+    <!-- CSRF protection -->
+    <script src="/static/js/csrf-protection.js"></script>
+  </body>
+</html>

@@ -33,7 +33,7 @@ function LoginModal({ visible, onClose, onSubmit }) {
   function handleSubmit(e){
     e.preventDefault();
     const data = { 
-      email: e.target.email.value, 
+      username: e.target.email.value, 
       password: e.target.password.value,
       rememberMe: rememberMe 
     };
@@ -110,7 +110,11 @@ function RegisterModal({ visible, onClose, onSubmit }) {
   
   function handleSubmit(e){
     e.preventDefault();
-    const data = { email: e.target.email.value, password: e.target.password.value };
+    const data = { 
+      username: e.target.username.value,
+      email: e.target.email.value, 
+      password: e.target.password.value 
+    };
     if (onSubmit) onSubmit(data);
   }
 
@@ -123,7 +127,8 @@ function RegisterModal({ visible, onClose, onSubmit }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <input ref={refFirst} name="email" type="email" required placeholder="Email" className="w-full p-2 rounded border mb-3" />
+          <input ref={refFirst} name="username" type="text" required placeholder="Username" className="w-full p-2 rounded border mb-3" />
+          <input name="email" type="email" required placeholder="Email" className="w-full p-2 rounded border mb-3" />
           <input name="password" type="password" required placeholder="Password" className="w-full p-2 rounded mb-4 border" />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className="px-3 py-1 rounded border">Cancel</button>
@@ -1132,6 +1137,7 @@ const CORE_TOOLS = [
         description: 'Combine multiple PDF files into one document',
         icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>,
         category: 'core',
+        allowMultiple: true,
         options: []
     },
     {
@@ -1896,8 +1902,8 @@ function App() {
                 // Store the remember me preference in localStorage if selected
                 if (rememberMe) {
                     localStorage.setItem('rememberUser', 'true');
-                    // You might want to store the user email for convenience
-                    localStorage.setItem('userEmail', credentials.email || credentials.username);
+                    // You might want to store the user username for convenience
+                    localStorage.setItem('userEmail', credentials.username);
                 } else {
                     // Clear any saved preferences if not checked
                     localStorage.removeItem('rememberUser');
@@ -1920,6 +1926,7 @@ function App() {
     const handleRegister = async (userData) => {
         try {
             console.log('Attempting registration with:', userData);
+            console.log('JSON payload:', JSON.stringify(userData));
             
             const response = await fetch(`${API_BASE_URL}/register`, {
                 method: 'POST',
@@ -1928,6 +1935,7 @@ function App() {
             });
             
             console.log('Registration response status:', response.status);
+            console.log('Registration response headers:', Object.fromEntries([...response.headers]));
             
             const responseText = await response.text();
             console.log('Registration response text:', responseText);
@@ -1935,6 +1943,7 @@ function App() {
             let responseData;
             try {
                 responseData = JSON.parse(responseText);
+                console.log('Parsed registration response:', responseData);
             } catch (parseError) {
                 console.error('Failed to parse JSON response:', parseError);
                 throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 100)}`);
@@ -1947,6 +1956,7 @@ function App() {
                 setShowLogin(true);
             } else {
                 console.error('Registration failed:', responseData);
+                alert(`Registration failed: ${responseData.error || 'Unknown error'}`);
                 throw new Error(responseData.error || 'Registration failed');
             }
         } catch (error) {
@@ -2214,12 +2224,23 @@ function App() {
                 let retries = 2;
                 let uploadResponse;
                 
+                // Get CSRF token from meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                
                 while (retries >= 0) {
                     try {
+                        // Add CSRF token to form data
+                        if (csrfToken) {
+                            formData.append('csrf_token', csrfToken);
+                        }
+                        
                         uploadResponse = await fetch(`${API_BASE_URL}/upload`, {
                             method: 'POST',
                             body: formData,
-                            credentials: 'include'
+                            credentials: 'include',
+                            headers: csrfToken ? {
+                                'X-CSRFToken': csrfToken
+                            } : {}
                         });
                         
                         if (uploadResponse.ok) break;
@@ -2301,7 +2322,11 @@ function App() {
                 const pollTask = (taskId) => new Promise((resolve, reject) => {
                     const interval = setInterval(async () => {
                         try {
-                            const statusResponse = await fetch(`${API_BASE_URL}/api/task-status/${taskId}`, { credentials: 'include' });
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                            const statusResponse = await fetch(`${API_BASE_URL}/api/task-status/${taskId}`, { 
+                                credentials: 'include',
+                                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+                            });
                             if (!statusResponse.ok) {
                                 clearInterval(interval);
                                 const errText = await statusResponse.text();
@@ -2337,13 +2362,24 @@ function App() {
                     params: options,
                 };
                 
+                // Get CSRF token from meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                
+                // Add CSRF token to payload
+                if (csrfToken) {
+                    processPayload.csrf_token = csrfToken;
+                }
+                
                 console.log("Processing request payload:", JSON.stringify(processPayload, null, 2));
                 
                 while (retries >= 0) {
                     try {
                         processResponse = await fetch(`${API_BASE_URL}/process`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                            },
                             body: JSON.stringify(processPayload),
                             credentials: 'include'
                         });
@@ -2357,11 +2393,19 @@ function App() {
                                 file_key: fileKeys[0],  // Try with just the first file
                             };
                             
+                            // Add CSRF token to simple payload as well
+                            if (csrfToken) {
+                                simplePayload.csrf_token = csrfToken;
+                            }
+                            
                             console.log("Trying simplified payload:", JSON.stringify(simplePayload, null, 2));
                             
                             processResponse = await fetch(`${API_BASE_URL}/process`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                                },
                                 body: JSON.stringify(simplePayload),
                                 credentials: 'include'
                             });
@@ -2409,9 +2453,15 @@ function App() {
                                 return reject(new Error("Task timed out after 5 minutes"));
                             }
                             
+                            // Get CSRF token from meta tag for task status request
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                            
                             const statusResponse = await fetch(`${API_BASE_URL}/task/${taskId}`, { 
                                 credentials: 'include',
-                                headers: { 'Cache-Control': 'no-cache' } // Prevent caching
+                                headers: { 
+                                    'Cache-Control': 'no-cache',
+                                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                                }
                             });
                             
                             if (!statusResponse.ok) {
@@ -2421,17 +2471,20 @@ function App() {
                             }
                             
                             const data = await statusResponse.json();
-                            console.log("Task status:", data);
+                            console.log("Task status:", JSON.stringify(data, null, 2));
                             
-                            if (data.status === 'SUCCESS') {
+                            if (data.status === 'SUCCESS' || data.status === 'completed') {
                                 clearInterval(interval);
                                 setProgress(100);
-                                resolve(data.result);
-                            } else if (data.status === 'FAILURE') {
+                                resolve(data.result || data);
+                            } else if (data.status === 'FAILURE' || data.status === 'failed') {
                                 clearInterval(interval);
                                 reject(new Error(data.error || 'Task failed without a specific error.'));
-                            } else if (data.status === 'PROGRESS') {
-                                setProgress(50 + (data.progress / 2));
+                            } else if (data.status === 'PROGRESS' || data.status === 'processing') {
+                                setProgress(50 + (data.progress || 0) / 2);
+                            } else if (data.status === 'PENDING') {
+                                // Task is still pending, wait for it
+                                setProgress(25);
                             }
                         } catch (error) {
                             console.error("Error polling task:", error);
@@ -2836,7 +2889,30 @@ function App() {
                                                                 return r.json();
                                                             }));
                                                             const keys = formDataResults.map(r=> r.key);
-                                                            const resp = await fetch(`${API_BASE_URL}/process`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ command: 'merge', file_keys: keys, params: {} }) });
+                                                            // Get CSRF token from meta tag
+                                                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                                            
+                                                            // Create payload with CSRF token
+                                                            const payload = { 
+                                                                command: 'merge', 
+                                                                file_keys: keys, 
+                                                                params: {} 
+                                                            };
+                                                            
+                                                            // Add CSRF token if available
+                                                            if (csrfToken) {
+                                                                payload.csrf_token = csrfToken;
+                                                            }
+                                                            
+                                                            const resp = await fetch(`${API_BASE_URL}/process`, { 
+                                                                method: 'POST', 
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                                                                }, 
+                                                                credentials: 'include', 
+                                                                body: JSON.stringify(payload) 
+                                                            });
                                                             if(!resp.ok) throw new Error(await resp.text());
                                                             const { task_id } = await resp.json();
                                                             const poll = (taskId) => new Promise((resolve, reject)=>{
@@ -2861,7 +2937,30 @@ function App() {
                                                             const up = await fetch(`${API_BASE_URL}/upload`, { method:'POST', body: fd, credentials:'include' });
                                                             if(!up.ok) throw new Error(await up.text());
                                                             const { key } = await up.json();
-                                                            const resp = await fetch(`${API_BASE_URL}/process`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ command: 'compress', file_keys: [key], params: {} }) });
+                                                            // Get CSRF token from meta tag
+                                                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                                            
+                                                            // Create payload with CSRF token
+                                                            const payload = { 
+                                                                command: 'compress', 
+                                                                file_keys: [key], 
+                                                                params: {} 
+                                                            };
+                                                            
+                                                            // Add CSRF token if available
+                                                            if (csrfToken) {
+                                                                payload.csrf_token = csrfToken;
+                                                            }
+                                                            
+                                                            const resp = await fetch(`${API_BASE_URL}/process`, { 
+                                                                method: 'POST', 
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                                                                }, 
+                                                                credentials: 'include', 
+                                                                body: JSON.stringify(payload) 
+                                                            });
                                                             if(!resp.ok) throw new Error(await resp.text());
                                                             const { task_id } = await resp.json();
                                                             const poll = (taskId) => new Promise((resolve, reject)=>{
@@ -3089,7 +3188,18 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
             alert('Passwords do not match!');
             return;
         }
-        onRegister({ username: formData.username, email: formData.email, password: formData.password });
+        // Log the data being sent
+        console.log('RegisterForm submitting:', { 
+            username: formData.username, 
+            email: formData.email, 
+            password: formData.password 
+        });
+        
+        onRegister({ 
+            username: formData.username, 
+            email: formData.email, 
+            password: formData.password 
+        });
     };
 
     return (
@@ -3745,11 +3855,17 @@ const Dropzone = ({ onFilesAdded, tool, onSelectClick }) => {
             className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg transition-colors duration-200 ${isDragging ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-white'}`}
         >
             <div className="text-red-500 mb-4">{renderIcon(tool.icon, 48)}</div>
-            <p className="text-xl font-semibold text-gray-700">Drop files here</p>
-            <p className="text-gray-500 mt-1">PDF, Jupyter notebooks, Python, Office documents, images, etc.</p>
+            <p className="text-xl font-semibold text-gray-700">
+                {tool && tool.id === 'merge' ? 'Drop multiple PDFs here' : 'Drop files here'}
+            </p>
+            <p className="text-gray-500 mt-1">
+                {tool && tool.id === 'merge' 
+                    ? 'Select multiple PDF files to combine into one document' 
+                    : 'PDF, Jupyter notebooks, Python, Office documents, images, etc.'}
+            </p>
             <p className="text-gray-500 mt-1">or</p>
             <button onClick={onSelectClick} className="mt-4 px-6 py-2 bg-red-500 text-white font-semibold rounded-md cursor-pointer hover:bg-red-600 transition-colors">
-                Select Files
+                {tool && tool.id === 'merge' ? 'Select Multiple PDFs' : 'Select Files'}
             </button>
         </div>
     );

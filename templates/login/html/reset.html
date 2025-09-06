@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   
+   <!-- CSRF Token for security -->
+   <meta name="csrf-token" content="{{ csrf_token }}">
+
+   <!--=============== REMIXICONS ===============-->
+   <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+
+   <!--=============== FAVICON ===============-->
+   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+
+   <!--=============== CSS ===============-->
+   <link rel="stylesheet" href="/static/login/css/styles.css">
+
+   <title>Reset Password - PDF Tool</title>
+</head>
+<body>
+   <div class="login">
+      <img src="/static/login/img/login-bg.png" alt="reset password image" class="login__img">
+
+      <form action="/reset-password" method="POST" class="login__form">
+         <h1 class="login__title">Reset Password</h1>
+
+         <!-- Hidden CSRF token field -->
+         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+         
+         <!-- Error message container - hidden by default -->
+         <div id="reset-message" class="login__message" style="display: none;"></div>
+
+         {% if error %}
+         <div class="login__message login__message-error">
+            {{ error }}
+         </div>
+         {% endif %}
+
+         {% if success %}
+         <div class="login__message login__message-success">
+            {{ success }}
+         </div>
+         {% endif %}
+
+         <div class="login__content">
+            <div class="login__box">
+               <i class="ri-mail-line login__icon"></i>
+
+               <div class="login__box-input">
+                  <input type="email" required class="login__input" id="reset-email" name="email" placeholder=" " autocomplete="email">
+                  <label for="reset-email" class="login__label">Email</label>
+               </div>
+            </div>
+         </div>
+
+         <button type="submit" class="login__button">
+            <span class="login__button-text">Send Reset Link</span>
+            <div class="spinner"></div>
+         </button>
+
+         <p class="login__register">
+            Remember your password? <a href="/login">Login</a>
+         </p>
+      </form>
+   </div>
+
+   <!--=============== TOAST CONTAINER ===============-->
+   <div class="toast-container"></div>
+
+   <!--=============== MAIN JS ===============-->
+   <script src="/static/login/js/main.js"></script>
+   <script src="/static/login/js/reset.js"></script>
+   <script src="/static/login/js/css-reloader.js"></script>
+</body>
+</html>

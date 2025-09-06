@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSRF Token for security -->
+  <meta name="csrf-token" content="{{ csrf_token }}" id="csrf-token-meta">
+  <title>PDF Processing - Accessible Form</title>
+  <link rel="stylesheet" href="/static/css/responsive.css">
+  <style>
+    /* Basic accessibility styles */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+    
+    /* Focus indicators */
+    *:focus {
+      outline: 2px solid #4299e1;
+      outline-offset: 2px;
+    }
+    
+    /* Form styling */
+    .upload-container {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      background-color: #fff;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .help-text {
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+      color: #4a5568;
+    }
+    
+    .custom-file-input {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .custom-file-input input[type="file"] {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+    }
+    
+    .upload-label {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 0.25rem;
+      background-color: #edf2f7;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .upload-label:hover, .upload-label:focus {
+      background-color: #e2e8f0;
+    }
+    
+    select, button {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 0.25rem;
+      background-color: #fff;
+      font-size: 1rem;
+    }
+    
+    button {
+      background-color: #4299e1;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover, button:focus {
+      background-color: #3182ce;
+    }
+    
+    button:disabled {
+      background-color: #a0aec0;
+      cursor: not-allowed;
+    }
+    
+    .error-text {
+      color: #e53e3e;
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+    }
+    
+    progress {
+      width: 100%;
+      height: 0.75rem;
+      margin-top: 1rem;
+    }
+    
+    /* File preview area */
+    .file-preview {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px dashed #cbd5e0;
+      border-radius: 0.25rem;
+      min-height: 100px;
+    }
+    
+    .file-item {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background-color: #f7fafc;
+      border-radius: 0.25rem;
+    }
+    
+    .file-name {
+      flex-grow: 1;
+      margin-right: 1rem;
+    }
+    
+    .file-remove {
+      background: none;
+      border: none;
+      color: #e53e3e;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="upload-container">
+      <h1 id="form-title">PDF Processing Tool</h1>
+      
+      <form id="pdf-upload-form" method="post" enctype="multipart/form-data" aria-labelledby="form-title">
+        <div class="form-group">
+          <div class="custom-file-input">
+            <input type="file" id="pdf-files" name="pdfFiles" accept=".pdf" multiple required
+                  aria-describedby="file-upload-help file-error" aria-required="true">
+            <label for="pdf-files" class="upload-label">Choose PDF files</label>
+          </div>
+          <p id="file-upload-help" class="help-text">Select one or more PDF files to process (required)</p>
+          <p id="file-error" class="error-text" aria-live="polite"></p>
+          
+          <!-- File preview will be shown here -->
+          <div class="file-preview" id="file-preview" aria-live="polite">
+            <p class="help-text">Selected files will appear here</p>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="pdf-operation">Choose operation</label>
+          <select id="pdf-operation" name="operation" required aria-required="true">
+            <option value="">Select an operation</option>
+            <option value="merge">Merge PDFs</option>
+            <option value="split">Split PDF</option>
+            <option value="compress">Compress PDF</option>
+            <option value="convert">Convert to other format</option>
+            <option value="extract">Extract text/images</option>
+            <option value="annotate">Add annotations</option>
+          </select>
+          <p id="operation-help" class="help-text">Select the operation to perform on your PDF files</p>
+        </div>
+        
+        <!-- Dynamic options based on selected operation -->
+        <div id="operation-options" aria-live="polite">
+          <!-- Will be populated dynamically based on operation selection -->
+        </div>
+        
+        <div class="form-group">
+          <button type="submit" id="submit-btn" name="submit" disabled>Process Files</button>
+          <progress id="upload-progress" max="100" value="0" hidden aria-hidden="true">0%</progress>
+        </div>
+      </form>
+    </div>
+  </main>
+  
+  <!-- Scripts for the interactive functionality -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('pdf-upload-form');
+      const fileInput = document.getElementById('pdf-files');
+      const operationSelect = document.getElementById('pdf-operation');
+      const submitBtn = document.getElementById('submit-btn');
+      const filePreview = document.getElementById('file-preview');
+      const fileError = document.getElementById('file-error');
+      const operationOptions = document.getElementById('operation-options');
+      const progressBar = document.getElementById('upload-progress');
+      
+      // Enable/disable submit button based on form validity
+      function updateSubmitButton() {
+        const filesSelected = fileInput.files.length > 0;
+        const operationSelected = operationSelect.value !== '';
+        submitBtn.disabled = !(filesSelected && operationSelected);
+      }
+      
+      // Update file preview
+      fileInput.addEventListener('change', function() {
+        // Clear previous preview
+        filePreview.innerHTML = '';
+        fileError.textContent = '';
+        
+        if (this.files.length === 0) {
+          filePreview.innerHTML = '<p class="help-text">Selected files will appear here</p>';
+          updateSubmitButton();
+          return;
+        }
+        
+        // Check file types and size
+        let totalSize = 0;
+        let hasError = false;
+        
+        Array.from(this.files).forEach(file => {
+          totalSize += file.size;
+          
+          const fileItem = document.createElement('div');
+          fileItem.className = 'file-item';
+          
+          const fileName = document.createElement('span');
+          fileName.className = 'file-name';
+          fileName.textContent = file.name;
+          
+          const fileSize = document.createElement('span');
+          fileSize.className = 'file-size';
+          fileSize.textContent = `(${formatFileSize(file.size)})`;
+          
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'file-remove';
+          removeBtn.textContent = 'Remove';
+          removeBtn.type = 'button';
+          removeBtn.setAttribute('aria-label', `Remove ${file.name}`);
+          
+          // File type validation
+          if (!file.name.toLowerCase().endsWith('.pdf')) {
+            fileName.style.color = '#e53e3e';
+            fileItem.appendChild(document.createTextNode('⚠️ '));
+            hasError = true;
+          }
+          
+          fileItem.appendChild(fileName);
+          fileItem.appendChild(document.createTextNode(' '));
+          fileItem.appendChild(fileSize);
+          fileItem.appendChild(removeBtn);
+          filePreview.appendChild(fileItem);
+        });
+        
+        // Show error if total size exceeds limit (25MB)
+        if (totalSize > 25 * 1024 * 1024) {
+          fileError.textContent = 'Total file size exceeds the 25MB limit';
+          hasError = true;
+        }
+        
+        // Show error if invalid file type
+        if (hasError) {
+          fileError.textContent = 'Please select valid PDF files only (under 25MB total)';
+        }
+        
+        updateSubmitButton();
+      });
+      
+      // Handle operation selection
+      operationSelect.addEventListener('change', function() {
+        operationOptions.innerHTML = '';
+        
+        // Generate dynamic options based on operation
+        if (this.value === 'split') {
+          const splitOptions = `
+            <div class="form-group">
+              <label for="split-method">Split method</label>
+              <select id="split-method" name="splitMethod">
+                <option value="pages">By page ranges</option>
+                <option value="each">Each page to separate PDF</option>
+                <option value="bookmarks">By bookmarks/outlines</option>
+              </select>
+              
+              <div id="page-range-container" class="form-group">
+                <label for="page-ranges">Page ranges</label>
+                <input type="text" id="page-ranges" name="pageRanges" 
+                       placeholder="e.g., 1-3, 5, 7-9" aria-describedby="range-help">
+                <p id="range-help" class="help-text">
+                  Specify page ranges separated by commas (e.g., 1-3, 5, 7-9)
+                </p>
+              </div>
+            </div>
+          `;
+          operationOptions.innerHTML = splitOptions;
+          
+          // Toggle page range input based on split method
+          document.getElementById('split-method').addEventListener('change', function() {
+            const pageRangeContainer = document.getElementById('page-range-container');
+            pageRangeContainer.style.display = this.value === 'pages' ? 'block' : 'none';
+          });
+        }
+        else if (this.value === 'convert') {
+          const convertOptions = `
+            <div class="form-group">
+              <label for="output-format">Output format</label>
+              <select id="output-format" name="outputFormat">
+                <option value="docx">Word Document (.docx)</option>
+                <option value="html">HTML (.html)</option>
+                <option value="text">Plain Text (.txt)</option>
+                <option value="images">Images (.png)</option>
+                <option value="epub">EPUB (.epub)</option>
+              </select>
+            </div>
+          `;
+          operationOptions.innerHTML = convertOptions;
+        }
+        else if (this.value === 'compress') {
+          const compressOptions = `
+            <div class="form-group">
+              <label for="compression-level">Compression level</label>
+              <select id="compression-level" name="compressionLevel">
+                <option value="low">Low (better quality)</option>
+                <option value="medium" selected>Medium (balanced)</option>
+                <option value="high">High (smaller file size)</option>
+              </select>
+            </div>
+          `;
+          operationOptions.innerHTML = compressOptions;
+        }
+        
+        updateSubmitButton();
+      });
+      
+      // Form submission with progress
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        progressBar.hidden = false;
+        progressBar.value = 0;
+        submitBtn.disabled = true;
+        
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        // Simulate upload with progress
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/process-pdf', true);
+        
+        // Add CSRF token to request headers
+        if (csrfToken) {
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            // Also add to form data for redundancy
+            formData.append('csrf_token', csrfToken);
+        }
+        
+        xhr.upload.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            progressBar.value = percentComplete;
+            progressBar.setAttribute('aria-valuenow', percentComplete);
+          }
+        };
+        
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            
+            // Handle successful response
+            if (response.success) {
+              // Redirect to results page or download file
+              if (response.resultUrl) {
+                window.location.href = response.resultUrl;
+              }
+            } else {
+              // Handle error response
+              fileError.textContent = response.error || 'An error occurred during processing';
+              progressBar.hidden = true;
+              submitBtn.disabled = false;
+            }
+          } else {
+            // Handle HTTP error
+            fileError.textContent = 'Server error: ' + xhr.status;
+            progressBar.hidden = true;
+            submitBtn.disabled = false;
+          }
+        };
+        
+        xhr.onerror = function() {
+          fileError.textContent = 'Network error occurred';
+          progressBar.hidden = true;
+          submitBtn.disabled = false;
+        };
+        
+        xhr.send(formData);
+      });
+      
+      // Helper function to format file size
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' bytes';
+        else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        else return (bytes / 1048576).toFixed(1) + ' MB';
+      }
+    });
+  </script>
+  <!-- CSRF protection -->
+  <script src="/static/js/csrf-protection.js"></script>
+</body>
+</html>

@@ -31,7 +31,15 @@ import matplotlib.pyplot as plt
 
 # Import pdf2image as a module so tests can easily patch it
 import pdf2image
-import pytesseract
+
+# Optional OCR support - make pytesseract import optional
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
+    logging.warning("pytesseract not available - OCR functionality disabled")
+
 from PIL import Image
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -295,19 +303,24 @@ class PDFProcessor:
         if not pdf_list:
             raise PDFValidationError("No PDF files provided")
         
-        merger = PyPDF2.PdfMerger()
+        # Use PdfWriter from pypdf instead of PdfMerger from PyPDF2
+        writer = pypdf.PdfWriter()
         try:
             for pdf in pdf_list:
                 pdf_path = self._validate_pdf(pdf)
-                merger.append(str(pdf_path))
+                reader = pypdf.PdfReader(str(pdf_path))
+                for page in reader.pages:
+                    writer.add_page(page)
             
             # Ensure the output directory exists
             os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
             
-            merger.write(output_path)
+            with open(output_path, 'wb') as output_file:
+                writer.write(output_file)
+            
             return f"PDFs merged successfully: {output_path}"
-        finally:
-            merger.close()
+        except Exception as e:
+            raise PDFOperationError(f"merge_pdfs failed: {e}")
 
     @with_error_handling
     def split_pdf(self, input_path: str, output_dir: str, **kwargs) -> str:
@@ -387,30 +400,15 @@ class PDFProcessor:
 
     @with_error_handling
     def edit_pdf_add_text(self, input_path: str, output_path: str, page_num: int, text: str, x: float, y: float, font_size: int = 12, **kwargs) -> str:
-        """Add text to specific page using matplotlib overlay."""
+        """Add text to specific page using PyMuPDF."""
         input_path = self._validate_pdf(input_path)
-        reader = PyPDF2.PdfReader(str(input_path))
-        writer = PyPDF2.PdfWriter()
-        
-        for i in range(len(reader.pages)):
-            if i + 1 == page_num:
-                # Create overlay PDF with text
-                fig, ax = plt.subplots(figsize=(8.5, 11))
-                ax.set_xlim(0, 8.5)
-                ax.set_ylim(0, 11)
-                ax.text(x, y, text, fontsize=font_size)
-                ax.axis('off')
-                overlay_io = io.BytesIO()
-                fig.savefig(overlay_io, format='pdf', bbox_inches=None, pad_inches=0)
-                plt.close(fig)
-                overlay_io.seek(0)
-                overlay_reader = PyPDF2.PdfReader(overlay_io)
-                page = reader.pages[i]
-                page.merge_page(overlay_reader.pages[0])
-            writer.add_page(reader.pages[i])
-            
-        # Use safe writer method instead of direct file write
-        self._safe_writer_write(writer, output_path)
+        doc = fitz.open(input_path)
+        if page_num < 1 or page_num > len(doc):
+            raise PDFValidationError(f"Invalid page number: {page_num}")
+        page = doc[page_num - 1]
+        page.insert_text((x, y), text, fontsize=font_size)
+        doc.save(output_path)
+        doc.close()
         
         # For signatures, use text from the input to ensure test assertion passes
         if "Digitally Signed" in text:
@@ -438,68 +436,51 @@ class PDFProcessor:
 
     @with_error_handling
     def annotate_pdf(self, input_path: str, output_path: str, page_num: int, annotation_type: str, params: Dict, **kwargs) -> str:
-        """Add annotations to PDF pages."""
+        """Add annotations to PDF pages using PyMuPDF."""
         input_path = self._validate_pdf(input_path)
-        reader = PyPDF2.PdfReader(str(input_path))
-        writer = PyPDF2.PdfWriter()
+        doc = fitz.open(input_path)
+        if page_num < 1 or page_num > len(doc):
+            raise PDFValidationError(f"Invalid page number: {page_num}")
+        page = doc[page_num - 1]
         
-        for i in range(len(reader.pages)):
-            if i + 1 == page_num:
-                fig, ax = plt.subplots(figsize=(8.5, 11))
-                ax.set_xlim(0, 8.5)
-                ax.set_ylim(0, 11)
-                ax.axis('off')
-                
-                if annotation_type == 'highlight':
-                    rect = plt.Rectangle((params['x1'], params['y1']), 
-                                       params['x2']-params['x1'], 
-                                       params['y2']-params['y1'],
-                                       color=params.get('color', 'yellow'), alpha=0.3)
-                    ax.add_patch(rect)
-                elif annotation_type == 'line':
-                    ax.plot([params['x1'], params['x2']], [params['y1'], params['y2']], 
-                           color=params.get('color', 'red'))
-                
-                overlay_io = io.BytesIO()
-                fig.savefig(overlay_io, format='pdf', bbox_inches=None, pad_inches=0, transparent=True)
-                plt.close(fig)
-                overlay_io.seek(0)
-                overlay_reader = PyPDF2.PdfReader(overlay_io)
-                page = reader.pages[i]
-                page.merge_page(overlay_reader.pages[0])
-            writer.add_page(reader.pages[i])
-            
-        with open(output_path, 'wb') as f:
-            writer.write(f)
+        if annotation_type == 'highlight':
+            rect = fitz.Rect(params['x1'], params['y1'], params['x2'], params['y2'])
+            annot = page.add_highlight_annot(rect)
+            if 'color' in params:
+                color = fitz.utils.getColor(params['color'])
+                annot.set_colors(stroke=color)
+                annot.update()
+        elif annotation_type == 'line':
+            p1 = (params['x1'], params['y1'])
+            p2 = (params['x2'], params['y2'])
+            annot = page.add_line_annot(p1, p2)
+            if 'color' in params:
+                color = fitz.utils.getColor(params['color'])
+                annot.set_colors(stroke=color)
+                annot.update()
+        else:
+            raise PDFValidationError(f"Unsupported annotation type: {annotation_type}")
+        
+        doc.save(output_path)
+        doc.close()
         return f"PDF annotated: {output_path}"
 
     @with_error_handling
     def redact_pdf(self, input_path: str, output_path: str, page_num: int, redactions: List[Tuple[float, float, float, float]], **kwargs) -> str:
-        """Redact areas by overlaying black rectangles."""
+        """Redact areas using PyMuPDF."""
         input_path = self._validate_pdf(input_path)
-        reader = PyPDF2.PdfReader(str(input_path))
-        writer = PyPDF2.PdfWriter()
+        doc = fitz.open(input_path)
+        if page_num < 1 or page_num > len(doc):
+            raise PDFValidationError(f"Invalid page number: {page_num}")
+        page = doc[page_num - 1]
         
-        for i in range(len(reader.pages)):
-            if i + 1 == page_num:
-                fig, ax = plt.subplots(figsize=(8.5, 11))
-                ax.set_xlim(0, 8.5)
-                ax.set_ylim(0, 11)
-                ax.axis('off')
-                for x1, y1, x2, y2 in redactions:
-                    rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, color='black')
-                    ax.add_patch(rect)
-                overlay_io = io.BytesIO()
-                fig.savefig(overlay_io, format='pdf', bbox_inches=None, pad_inches=0)
-                plt.close(fig)
-                overlay_io.seek(0)
-                overlay_reader = PyPDF2.PdfReader(overlay_io)
-                page = reader.pages[i]
-                page.merge_page(overlay_reader.pages[0])
-            writer.add_page(reader.pages[i])
-            
-        with open(output_path, 'wb') as f:
-            writer.write(f)
+        for x1, y1, x2, y2 in redactions:
+            rect = fitz.Rect(x1, y1, x2, y2)
+            page.add_redact_annot(rect, fill=(0, 0, 0))
+        page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+        
+        doc.save(output_path)
+        doc.close()
         return f"PDF redacted: {output_path}"
 
     @with_error_handling
@@ -511,17 +492,18 @@ class PDFProcessor:
         text1 = pdfminer_high_level.extract_text(str(pdf1_path))
         text2 = pdfminer_high_level.extract_text(str(pdf2_path))
         
-        # Compare text content - fix the comparison logic
         if text1 == text2:
             return "PDFs are identical in text content"
         else:
-            # Create a meaningful diff summary
             diff_lines = list(difflib.unified_diff(text1.splitlines(), text2.splitlines()))
-            return f"PDFs differ in text content. {len(text1)} chars vs {len(text2)} chars."
+            return f"PDFs differ in text content:\n{'\n'.join(diff_lines)}"
 
     @with_error_handling
     def ocr_pdf_images(self, input_path: str, **kwargs) -> Dict[int, str]:
         """Extract embedded images from PDF and perform OCR."""
+        if not PYTESSERACT_AVAILABLE:
+            raise PDFOperationError("OCR functionality not available - pytesseract not installed")
+            
         input_path = self._validate_pdf(input_path)
         
         # Handle PDF to image conversion
@@ -551,7 +533,6 @@ class PDFProcessor:
             raise PDFOperationError(f"OCR failed: {str(e)}")
 
     @with_error_handling
-    @with_error_handling
     def repair_pdf(self, input_path: str, output_path: str, **kwargs) -> str:
         """Attempt to repair corrupted PDF by re-writing it."""
         # Try using qpdf (command line tool) first
@@ -565,7 +546,7 @@ class PDFProcessor:
             if result.returncode == 0:
                 return f"PDF repaired successfully: {output_path}"
         except Exception as e:
-            self.logger.warning(f"qpdf repair failed: {e}, trying PyPDF2 fallback")
+            logger.warning(f"qpdf repair failed: {e}, trying PyPDF2 fallback")
         
         # Fall back to PyPDF2
         try:
@@ -608,7 +589,7 @@ class PDFProcessor:
         input_path = self._validate_pdf(input_path)
         os.makedirs(output_dir, exist_ok=True)
         
-        reader = PdfReader(input_path)
+        reader = pypdf.PdfReader(input_path)
         img_count = 0
         
         for page_num, page in enumerate(reader.pages, 1):
@@ -709,28 +690,26 @@ class PDFProcessor:
 
     @with_error_handling
     def watermark_pdf(self, input_path: str, output_path: str, watermark_text: str, opacity: float = 0.3, font_size: int = 36, **kwargs) -> str:
-        """Add text watermark to all pages."""
+        """Add text watermark to all pages using PyMuPDF."""
         input_path = self._validate_pdf(input_path)
-        reader = PyPDF2.PdfReader(str(input_path))
-        writer = PyPDF2.PdfWriter()
+        doc = fitz.open(input_path)
+        gray = (0.7, 0.7, 0.7)  # Light gray for watermark effect (since no direct alpha for insert_text)
         
-        for page in reader.pages:
-            fig, ax = plt.subplots(figsize=(8.5, 11))
-            ax.set_xlim(0, 8.5)
-            ax.set_ylim(0, 11)
-            ax.text(4.25, 5.5, watermark_text, fontsize=font_size, color='gray', alpha=opacity,
-                   rotation=45, ha='center', va='center')
-            ax.axis('off')
-            overlay_io = io.BytesIO()
-            fig.savefig(overlay_io, format='pdf', bbox_inches=None, pad_inches=0, transparent=True)
-            plt.close(fig)
-            overlay_io.seek(0)
-            overlay_reader = PyPDF2.PdfReader(overlay_io)
-            page.merge_page(overlay_reader.pages[0])
-            writer.add_page(page)
+        for page in doc:
+            # Calculate center position
+            center_x = page.rect.width / 2
+            center_y = page.rect.height / 2
+            # Insert text without rotation first to avoid issues
+            # Some versions of PyMuPDF have issues with rotate parameter
+            try:
+                # Try with rotation in degrees
+                page.insert_text((center_x, center_y), watermark_text, fontsize=font_size, color=gray, rotate=45)
+            except:
+                # Fallback: insert without rotation if rotate parameter fails
+                page.insert_text((center_x, center_y), watermark_text, fontsize=font_size, color=gray)
             
-        with open(output_path, 'wb') as f:
-            writer.write(f)
+        doc.save(output_path)
+        doc.close()
         return f"PDF watermarked: {output_path}"
 
     @with_error_handling
@@ -761,7 +740,6 @@ class PDFProcessor:
         return f"PDF protected: {output_path}"
 
     @with_error_handling
-    @with_error_handling
     def unlock_pdf(self, input_path: str, output_path: str, password: str, **kwargs) -> str:
         """Decrypt PDF if password known."""
         input_path = self._validate_pdf(input_path)
@@ -780,32 +758,22 @@ class PDFProcessor:
 
     @with_error_handling
     def add_page_numbers(self, input_path: str, output_path: str, start: int = 1, position: str = 'bottom-right', **kwargs) -> str:
-        """Add page numbers to PDF."""
+        """Add page numbers to PDF using PyMuPDF."""
         input_path = self._validate_pdf(input_path)
-        reader = PyPDF2.PdfReader(str(input_path))
-        writer = PyPDF2.PdfWriter()
+        doc = fitz.open(input_path)
         
-        for i, page in enumerate(reader.pages, start):
+        for i, page in enumerate(doc, start):
             if position == 'bottom-right':
-                x, y = 7.5, 0.5
-            else:
-                x, y = 4.25, 0.5
+                x = page.rect.width - 50
+                y = page.rect.height - 20
+            else:  # default to bottom-center
+                x = page.rect.width / 2 - 20
+                y = page.rect.height - 20
             
-            fig, ax = plt.subplots(figsize=(8.5, 11))
-            ax.set_xlim(0, 8.5)
-            ax.set_ylim(0, 11)
-            ax.text(x, y, f"Page {i}", fontsize=10)
-            ax.axis('off')
-            overlay_io = io.BytesIO()
-            fig.savefig(overlay_io, format='pdf', bbox_inches=None, pad_inches=0, transparent=True)
-            plt.close(fig)
-            overlay_io.seek(0)
-            overlay_reader = PyPDF2.PdfReader(overlay_io)
-            page.merge_page(overlay_reader.pages[0])
-            writer.add_page(page)
+            page.insert_text((x, y), f"Page {i}", fontsize=10)
             
-        with open(output_path, 'wb') as f:
-            writer.write(f)
+        doc.save(output_path)
+        doc.close()
         return f"Page numbers added: {output_path}"
 
     @with_error_handling
@@ -921,7 +889,6 @@ class PDFProcessor:
         return f"PowerPoint converted to PDF (basic text extraction): {output_path}"
 
     @with_error_handling
-    @with_error_handling
     def excel_to_pdf(self, input_path: str, output_path: str, sheet_name: Optional[str] = None, **kwargs) -> str:
         """
         Convert Excel to PDF using openpyxl and matplotlib.
@@ -1025,41 +992,52 @@ class PDFProcessor:
 
     @with_error_handling
     def html_to_pdf(self, input_path: str, output_path: str, **kwargs) -> str:
-        """Convert HTML file to PDF by extracting text content."""
+        """Convert HTML file to PDF, preferring WeasyPrint if available, fallback to wkhtmltopdf or text extraction."""
         input_path = self._validate_file(input_path)
         if input_path.suffix.lower() not in ['.html', '.htm']:
             raise PDFValidationError("Input must be an HTML file")
             
-        # Using wkhtmltopdf or similar conversion tool
-        import subprocess
+        # Try WeasyPrint first (recommended in 2025)
+        try:
+            from weasyprint import HTML
+            HTML(filename=input_path).write_pdf(output_path)
+            return f"HTML converted to PDF using WeasyPrint: {output_path}"
+        except ImportError:
+            logger.warning("WeasyPrint not installed, falling back to wkhtmltopdf or basic extraction.")
+        except Exception as e:
+            logger.warning(f"WeasyPrint failed: {str(e)}, falling back.")
+        
+        # Fallback to wkhtmltopdf
         try:
             subprocess.run(['wkhtmltopdf', str(input_path), output_path], check=True)
-            return f"HTML converted to PDF: {output_path}"
-        except (subprocess.SubprocessError, FileNotFoundError):
-            # Fallback to basic extraction if external tools fail
-            class TextExtractor(HTMLParser):
-                def __init__(self):
-                    super().__init__()
-                    self.text = []
-                def handle_data(self, data):
-                    stripped = data.strip()
-                    if stripped:
-                        self.text.append(stripped)
-                        
-            with open(input_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            parser = TextExtractor()
-            parser.feed(html_content)
-            full_text = '\n'.join(parser.text)
-            full_text = textwrap.fill(full_text, width=90)
-            
-            # Create simple PDF with extracted text
-            fig, ax = plt.subplots(figsize=(8.5, 11))
-            ax.text(0.1, 0.9, full_text, fontsize=12, va='top', ha='left', transform=ax.transAxes)
-            ax.axis('off')
-            fig.savefig(output_path, format='pdf', bbox_inches='tight', pad_inches=0.5)
-            plt.close(fig)
-            return f"HTML converted to PDF (basic text extraction): {output_path}"
+            return f"HTML converted to PDF using wkhtmltopdf: {output_path}"
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            logger.warning(f"wkhtmltopdf failed: {str(e)}, using basic text extraction fallback.")
+        
+        # Basic text extraction fallback
+        class TextExtractor(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.text = []
+            def handle_data(self, data):
+                stripped = data.strip()
+                if stripped:
+                    self.text.append(stripped)
+                    
+        with open(input_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        parser = TextExtractor()
+        parser.feed(html_content)
+        full_text = '\n'.join(parser.text)
+        full_text = textwrap.fill(full_text, width=90)
+        
+        # Create simple PDF with extracted text
+        fig, ax = plt.subplots(figsize=(8.5, 11))
+        ax.text(0.1, 0.9, full_text, fontsize=12, va='top', ha='left', transform=ax.transAxes)
+        ax.axis('off')
+        fig.savefig(output_path, format='pdf', bbox_inches='tight', pad_inches=0.5)
+        plt.close(fig)
+        return f"HTML converted to PDF (basic text extraction): {output_path}"
 
     @with_error_handling
     def convert_to_pdf(self, input_path: str, output_dir: str, **kwargs) -> str:
@@ -1144,7 +1122,17 @@ class PDFProcessor:
                     temp_files.append(output)
                 
                 result = method(**args)
-                if "success" not in result.lower() and "successfully" not in result.lower():
+                if not (
+                    "success" in result.lower() or 
+                    "successfully" in result.lower() or
+                    "watermarked" in result.lower() or
+                    "rotated" in result.lower() or
+                    "compressed" in result.lower() or
+                    "merged" in result.lower() or
+                    "split" in result.lower() or
+                    "protected" in result.lower() or
+                    result.startswith("PDF ")  # Many methods return "PDF <operation>: <path>"
+                ):
                     raise PDFOperationError(f"Workflow step failed: {result}")
                     
                 current_input = args['output_path']

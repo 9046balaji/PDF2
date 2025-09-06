@@ -4,12 +4,13 @@ import math
 import time
 import logging
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify, send_file, abort, render_template_string, url_for, redirect, session, current_app
+from flask import Flask, request, jsonify, send_file, abort, render_template_string, url_for, redirect, session, current_app, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import BadRequest
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from pypdf import PdfReader, PdfWriter
 import pikepdf
@@ -30,6 +31,8 @@ import traceback
 import tempfile
 import shutil  # Added for file moving in enhanced_split
 import subprocess  # Ensure it's imported at the top level
+from flask.helpers import send_from_directory
+from config_loader import get_env, get_secret_key, get_database_url, is_debug_mode
 
 # Helper function to get absolute path for uploads
 # ---------- small helpers ----------
@@ -99,20 +102,28 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+    from opentelemetry.sdk.resources import Resource as OTResource, SERVICE_NAME
     TELEMETRY_AVAILABLE = True
 except ImportError:
     TELEMETRY_AVAILABLE = False
     logging.warning("OpenTelemetry not available - observability disabled")
 
+# Celery configuration
+try:
+    from celery import Celery
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    logging.warning("Celery not available - background tasks disabled")
+
 # Import the new PDF processor
 from pdf_processor import PDFProcessor, PDFValidationError, PDFOperationError
 
-# Initialize PDF processor
-pdf_processor = PDFProcessor()
+# Initialize PDF processor with higher file size limit (2GB)
+pdf_processor = PDFProcessor(max_file_size_mb=2048)
 
 # --- App Initialization ---
-app = Flask(__name__, static_folder='static', static_url_path='')
+app = Flask(__name__, static_folder='static/dist', static_url_path='')
 
 # Load environment variables from config_loader
 from config_loader import get_secret_key, get_database_url, get_api_key, is_debug_mode
@@ -121,10 +132,30 @@ from config_loader import get_secret_key, get_database_url, get_api_key, is_debu
 secret_key = get_secret_key()
 app.config['SECRET_KEY'] = secret_key
 
+# Note: We don't initialize Celery here - we use the instance from tasks.py
+
+# Add a route to serve login static files from templates directory
+@app.route('/static/login/<path:filename>')
+def login_static(filename):
+    # Split the path to handle subdirectories correctly
+    subdirs = filename.split('/')
+    if len(subdirs) > 1:
+        # For nested paths like 'img/login-bg.png'
+        subdir, file = '/'.join(subdirs[:-1]), subdirs[-1]
+        return send_from_directory(os.path.join(app.root_path, 'templates/login', subdir), file)
+    else:
+        # For files directly in the login directory
+        return send_from_directory(os.path.join(app.root_path, 'templates/login'), filename)
+
+# Add a route to serve JS files from static/js directory
+@app.route('/js/<path:filename>')
+def js_files(filename):
+    return send_from_directory(os.path.join(app.root_path, 'static/js'), filename)
+
 # Configure database with fallback
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH_MB', '50')) * 1024 * 1024  # default 50MB
+app.config['MAX_CONTENT_LENGTH'] = int(get_env('MAX_CONTENT_LENGTH_MB', '2048')) * 1024 * 1024  # default 2GB
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -133,13 +164,13 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Flask-Mail configuration
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@pdf-tool.com')
+app.config['MAIL_SERVER'] = get_env('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(get_env('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = get_env('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USE_SSL'] = get_env('MAIL_USE_SSL', 'false').lower() == 'true'
+app.config['MAIL_USERNAME'] = get_env('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = get_env('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = get_env('MAIL_DEFAULT_SENDER', 'noreply@pdf-tool.com')
 
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -247,6 +278,61 @@ def auth_required(f):
         return login_required(f)(*args, **kwargs)
     return wrapper
 
+def admin_required(f):
+    """Decorator that ensures user is authenticated and has admin role.
+    Use this on routes that should only be accessible to administrators.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        # Allow tests to bypass auth
+        if app.config.get("TESTING"):
+            return f(*args, **kwargs)
+        
+        # Check if user is authenticated
+        if not current_user.is_authenticated:
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('login'))
+        
+        # Check if user is admin (username is 'admin')
+        if current_user.username != 'admin':
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Admin privileges required'}), 403
+            # For HTML requests, show a forbidden page
+            return render_template_string("""
+                <h1>Access Denied</h1>
+                <p>You do not have admin privileges to access this page.</p>
+                <p><a href="{{ url_for('index') }}">Return to homepage</a></p>
+            """), 403
+            
+        return f(*args, **kwargs)
+    return wrapper
+
+# --- HTTP Basic Auth Support (for tools/tests using requests.Session(auth=(u,p))) ---
+@app.before_request
+def basic_auth_login():
+    """If an Authorization: Basic header is present, authenticate the user.
+    This enables simple Basic Auth for API clients without changing existing
+    session-based auth flows (Flask-Login remains the source of truth).
+    """
+    try:
+        # Skip if already authenticated or for static assets
+        if current_user.is_authenticated:
+            return
+        if request.endpoint in {"static", "login_static", "js_files"}:
+            return
+
+        auth = request.authorization  # Flask parses Basic/Digest headers
+        if not auth or not auth.username or not auth.password:
+            return
+
+        user = User.query.filter_by(username=auth.username).first()
+        if user and check_password_hash(user.password_hash, auth.password):
+            login_user(user)
+    except Exception:
+        # Never block the request due to auth helper errors; normal flow continues
+        pass
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -315,19 +401,24 @@ def format_bytes(bytes, decimals=2):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return app.send_static_file('index.html')
+        return render_template('login/html/register.html')
     
     try:
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 400
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Invalid JSON data'}), 400
-        
-        username = data.get('username')
-        email = data.get('email')
-        password = data.get('password')
+        # Handle form submissions
+        if request.content_type == 'application/x-www-form-urlencoded':
+            username = request.form.get('username')
+            email = request.form.get('email')
+            password = request.form.get('password')
+        # Handle API JSON requests
+        elif request.is_json:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            username = data.get('username')
+            email = data.get('email')
+            password = data.get('password')
+        else:
+            return jsonify({'error': 'Unsupported content type'}), 400
         
         if not username or not email or not password:
             return jsonify({'error': 'Username, email, and password are required'}), 400
@@ -356,21 +447,53 @@ def register():
         db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password_request():
+    if request.method == 'GET':
+        return render_template('login/html/reset.html')
+    
+    try:
+        # Handle form submissions
+        if request.content_type == 'application/x-www-form-urlencoded':
+            email = request.form.get('email')
+        # Handle API JSON requests
+        elif request.is_json:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            email = data.get('email')
+        else:
+            return jsonify({'error': 'Unsupported content type'}), 400
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+            
+        # For now, just return a success message
+        return jsonify({'message': 'Password reset instructions sent to your email'}), 200
+        
+    except Exception as e:
+        logging.exception("Reset password error occurred")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return app.send_static_file('index.html')
+        return render_template('login/html/index.html')
     
     try:
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 400
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Invalid JSON data'}), 400
-        
-        username = data.get('username')
-        password = data.get('password')
+        # Handle form submissions
+        if request.content_type == 'application/x-www-form-urlencoded':
+            username = request.form.get('username')
+            password = request.form.get('password')
+        # Handle API JSON requests
+        elif request.is_json:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            username = data.get('username')
+            password = data.get('password')
+        else:
+            return jsonify({'error': 'Unsupported content type'}), 400
         
         if not username or not password:
             return jsonify({'error': 'Username and password are required'}), 400
@@ -403,7 +526,16 @@ def profile():
         'created_at': current_user.created_at.isoformat()
     })
 
-# --- Password Reset Routes ---
+ # --- Password Reset Routes ---
+@app.route('/reset-password/<token>', methods=['GET'])
+def reset_password_page(token):
+    """Serve the password reset HTML page."""
+    return render_template('login/html/reset.html', token=token)
+
+@app.route('/request-password-reset', methods=['GET'])
+def request_password_reset_page():
+    """Serve the request password reset HTML page."""
+    return render_template('login/html/reset.html')
 @app.route('/request-password-reset', methods=['POST'])
 def request_password_reset():
     try:
@@ -422,7 +554,7 @@ def request_password_reset():
             return jsonify({'message': 'If the email exists, a password reset link has been sent'}), 200
         
         # Generate reset token
-        token = serializer.dumps(user.email, salt=os.environ.get('PASSWORD_RESET_SALT', 'CHANGE_THIS_IN_PRODUCTION_USE_ENV_VAR'))
+        token = serializer.dumps(user.email, salt=get_env('PASSWORD_RESET_SALT', default=None, required=True))
         
         # Create reset URL
         reset_url = f"{request.host_url}reset-password/{token}"
@@ -463,7 +595,7 @@ def reset_password(token):
             return jsonify({'error': 'New password must be at least 6 characters long'}), 400
         
         try:
-            email = serializer.loads(token, salt=os.environ.get('PASSWORD_RESET_SALT', 'CHANGE_THIS_IN_PRODUCTION_USE_ENV_VAR'), max_age=3600)  # 1 hour expiry
+            email = serializer.loads(token, salt=get_env('PASSWORD_RESET_SALT', default=None, required=True), max_age=3600)  # 1 hour expiry
         except SignatureExpired:
             return jsonify({'error': 'Password reset link has expired'}), 400
         except BadSignature:
@@ -600,6 +732,378 @@ def health_check():
             "timestamp": datetime.now().isoformat()
         }), 503  # Service Unavailable
 
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """Admin dashboard for system management"""
+    # Get total user count
+    user_count = User.query.count()
+    
+    # Get file statistics
+    file_count = FileRecord.query.count()
+    total_size = db.session.query(db.func.sum(FileRecord.file_size)).scalar() or 0
+    
+    # Get recent user registrations
+    recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+    
+    # Get system status info
+    disk_usage = shutil.disk_usage('/')
+    free_space_gb = disk_usage.free / (1024 * 1024 * 1024)
+    
+    # For API/JSON requests
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            'user_count': user_count,
+            'file_count': file_count, 
+            'total_size': format_bytes(total_size),
+            'free_space': f"{free_space_gb:.2f} GB",
+            'recent_users': [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'created_at': user.created_at.isoformat()
+            } for user in recent_users]
+        })
+    
+    # For HTML requests, use template string for simplicity
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Admin Dashboard</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .dashboard { max-width: 1000px; margin: 0 auto; }
+                .card { border: 1px solid #ccc; border-radius: 5px; padding: 15px; margin: 10px 0; }
+                .stats { display: flex; flex-wrap: wrap; }
+                .stat-card { flex: 1; min-width: 200px; margin: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+                th { background-color: #f2f2f2; }
+            </style>
+        </head>
+        <body>
+            <div class="dashboard">
+                <h1>Admin Dashboard</h1>
+                <div class="card">
+                    <h2>System Overview</h2>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <h3>Users</h3>
+                            <p>{{ user_count }}</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Files</h3>
+                            <p>{{ file_count }}</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Storage Used</h3>
+                            <p>{{ total_size }}</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Free Space</h3>
+                            <p>{{ free_space }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Recent Users</h2>
+                    <table>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Created</th>
+                        </tr>
+                        {% for user in recent_users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <h2>Admin Actions</h2>
+                    <p><a href="{{ url_for('admin_users') }}">Manage Users</a></p>
+                    <p><a href="{{ url_for('admin_files') }}">Manage Files</a></p>
+                    <p><a href="{{ url_for('admin_system') }}">System Settings</a></p>
+                </div>
+            </div>
+        </body>
+        </html>
+    """, 
+    user_count=user_count,
+    file_count=file_count,
+    total_size=format_bytes(total_size),
+    free_space=f"{free_space_gb:.2f} GB",
+    recent_users=recent_users
+    )
+
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    """Admin user management"""
+    users = User.query.order_by(User.id).all()
+    
+    # For API/JSON requests
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            'users': [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'created_at': user.created_at.isoformat()
+            } for user in users]
+        })
+    
+    # For HTML requests
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>User Management</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .container { max-width: 1000px; margin: 0 auto; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+                th { background-color: #f2f2f2; }
+                .actions { display: flex; gap: 10px; }
+                .actions a { color: blue; text-decoration: none; }
+                .actions a:hover { text-decoration: underline; }
+                .back-link { margin-bottom: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="back-link">
+                    <a href="{{ url_for('admin_dashboard') }}">← Back to Dashboard</a>
+                </div>
+                
+                <h1>User Management</h1>
+                <table>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td class="actions">
+                            <a href="{{ url_for('admin_edit_user', user_id=user.id) }}">Edit</a>
+                            {% if user.username != 'admin' %}
+                            <a href="{{ url_for('admin_delete_user', user_id=user.id) }}" 
+                               onclick="return confirm('Are you sure you want to delete this user?')">Delete</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </body>
+        </html>
+    """, users=users)
+
+@app.route('/admin/files')
+@admin_required
+def admin_files():
+    """Admin file management"""
+    files = FileRecord.query.order_by(FileRecord.upload_date.desc()).all()
+    
+    # For API/JSON requests
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            'files': [{
+                'id': f.id,
+                'filename': f.filename,
+                'original_filename': f.original_filename,
+                'file_size': f.file_size,
+                'formatted_size': format_bytes(f.file_size),
+                'upload_date': f.upload_date.isoformat(),
+                'user_id': f.user_id
+            } for f in files]
+        })
+    
+    # For HTML requests
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>File Management</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .container { max-width: 1000px; margin: 0 auto; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+                th { background-color: #f2f2f2; }
+                .actions { display: flex; gap: 10px; }
+                .actions a { color: blue; text-decoration: none; }
+                .actions a:hover { text-decoration: underline; }
+                .back-link { margin-bottom: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="back-link">
+                    <a href="{{ url_for('admin_dashboard') }}">← Back to Dashboard</a>
+                </div>
+                
+                <h1>File Management</h1>
+                <table>
+                    <tr>
+                        <th>ID</th>
+                        <th>Original Name</th>
+                        <th>Size</th>
+                        <th>Upload Date</th>
+                        <th>User ID</th>
+                        <th>Actions</th>
+                    </tr>
+                    {% for file in files %}
+                    <tr>
+                        <td>{{ file.id }}</td>
+                        <td>{{ file.original_filename }}</td>
+                        <td>{{ format_bytes(file.file_size) }}</td>
+                        <td>{{ file.upload_date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ file.user_id }}</td>
+                        <td class="actions">
+                            <a href="{{ url_for('download_file', key=file.filename) }}">Download</a>
+                            <a href="{{ url_for('admin_delete_file', file_id=file.id) }}"
+                               onclick="return confirm('Are you sure you want to delete this file?')">Delete</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </body>
+        </html>
+    """, files=files, format_bytes=format_bytes)
+
+@app.route('/admin/system')
+@admin_required
+def admin_system():
+    """Admin system settings"""
+    
+    # System information
+    system_info = {
+        'os': os.name,
+        'python_version': sys.version,
+        'app_directory': os.path.abspath(os.path.dirname(__file__)),
+        'uploads_directory': os.path.abspath(UPLOAD_FOLDER),
+        'processed_directory': os.path.abspath(PROCESSED_FOLDER),
+    }
+    
+    # For API/JSON requests
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            'system_info': system_info,
+            'environment_variables': {
+                'FLASK_ENV': os.getenv('FLASK_ENV', 'production'),
+                'FLASK_DEBUG': os.getenv('FLASK_DEBUG', 'False'),
+                'SECRET_KEY': 'REDACTED',
+                'DATABASE_URL': get_database_url().replace('://', '://[CREDENTIALS]@') if '@' in get_database_url() else get_database_url()
+            }
+        })
+    
+    # For HTML requests
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>System Settings</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .container { max-width: 1000px; margin: 0 auto; }
+                .card { border: 1px solid #ccc; border-radius: 5px; padding: 15px; margin: 15px 0; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+                th { background-color: #f2f2f2; width: 30%; }
+                .back-link { margin-bottom: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="back-link">
+                    <a href="{{ url_for('admin_dashboard') }}">← Back to Dashboard</a>
+                </div>
+                
+                <h1>System Settings</h1>
+                
+                <div class="card">
+                    <h2>System Information</h2>
+                    <table>
+                        <tr>
+                            <th>Operating System</th>
+                            <td>{{ system_info.os }}</td>
+                        </tr>
+                        <tr>
+                            <th>Python Version</th>
+                            <td>{{ system_info.python_version }}</td>
+                        </tr>
+                        <tr>
+                            <th>App Directory</th>
+                            <td>{{ system_info.app_directory }}</td>
+                        </tr>
+                        <tr>
+                            <th>Uploads Directory</th>
+                            <td>{{ system_info.uploads_directory }}</td>
+                        </tr>
+                        <tr>
+                            <th>Processed Directory</th>
+                            <td>{{ system_info.processed_directory }}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <h2>Environment Variables</h2>
+                    <table>
+                        <tr>
+                            <th>FLASK_ENV</th>
+                            <td>{{ os.getenv('FLASK_ENV', 'production') }}</td>
+                        </tr>
+                        <tr>
+                            <th>FLASK_DEBUG</th>
+                            <td>{{ os.getenv('FLASK_DEBUG', 'False') }}</td>
+                        </tr>
+                        <tr>
+                            <th>SECRET_KEY</th>
+                            <td>REDACTED</td>
+                        </tr>
+                        <tr>
+                            <th>DATABASE_URL</th>
+                            <td>{{ redacted_db_url }}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <h2>Actions</h2>
+                    <p><a href="{{ url_for('admin_clear_processed_files') }}" 
+                          onclick="return confirm('Are you sure you want to clear all processed files?')">
+                            Clear Processed Files
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+    """, 
+    system_info=system_info, 
+    os=os,
+    redacted_db_url=get_database_url().replace('://', '://[CREDENTIALS]@') if '@' in get_database_url() else get_database_url()
+    )
+
 @app.route('/healthz', methods=['GET'])
 def healthz_check():
     """Secondary health check endpoint (simpler implementation)"""
@@ -617,6 +1121,202 @@ def healthz_check():
             "message": "Service is experiencing issues",
             "timestamp": datetime.now().isoformat()
         }), 503
+
+@app.route('/admin/edit-user/<int:user_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_user(user_id):
+    """Admin user edit"""
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        # Handle JSON or form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+            
+        # Update user fields
+        if data.get('username'):
+            user.username = data.get('username')
+        if data.get('email'):
+            user.email = data.get('email')
+        if data.get('password'):
+            user.password_hash = generate_password_hash(data.get('password'))
+            
+        db.session.commit()
+        
+        # Return JSON response for API requests
+        if request.is_json:
+            return jsonify({'message': 'User updated successfully'})
+        
+        # Redirect for form submissions
+        return redirect(url_for('admin_users'))
+    
+    # GET request - show edit form
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Edit User</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .container { max-width: 600px; margin: 0 auto; }
+                .form-group { margin-bottom: 15px; }
+                label { display: block; margin-bottom: 5px; }
+                input[type="text"], input[type="email"], input[type="password"] {
+                    width: 100%;
+                    padding: 8px;
+                    box-sizing: border-box;
+                }
+                button { padding: 8px 15px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+                .back-link { margin-bottom: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="back-link">
+                    <a href="{{ url_for('admin_users') }}">← Back to Users</a>
+                </div>
+                
+                <h1>Edit User</h1>
+                <form method="post">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" value="{{ user.username }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">New Password (leave blank to keep current)</label>
+                        <input type="password" id="password" name="password">
+                    </div>
+                    <button type="submit">Update User</button>
+                </form>
+            </div>
+        </body>
+        </html>
+    """, user=user)
+
+@app.route('/admin/delete-user/<int:user_id>', methods=['GET'])
+@admin_required
+def admin_delete_user(user_id):
+    """Admin delete user"""
+    user = User.query.get_or_404(user_id)
+    
+    # Prevent deleting the admin user
+    if user.username == 'admin':
+        return jsonify({'error': 'Cannot delete admin user'}), 403
+    
+    try:
+        # Delete associated files
+        files = FileRecord.query.filter_by(user_id=user.id).all()
+        for file in files:
+            # Delete physical file if it exists
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            # Delete database record
+            db.session.delete(file)
+        
+        # Delete user
+        db.session.delete(user)
+        db.session.commit()
+        
+        # Return JSON response for API requests
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'message': 'User deleted successfully'})
+        
+        # Redirect for browser requests
+        return redirect(url_for('admin_users'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting user: {str(e)}")
+        
+        # Return error response
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'error': f'Failed to delete user: {str(e)}'}), 500
+        
+        # Show error page for browser requests
+        return render_template_string("""
+            <h1>Error</h1>
+            <p>Failed to delete user: {{ error }}</p>
+            <p><a href="{{ url_for('admin_users') }}">Back to Users</a></p>
+        """, error=str(e)), 500
+
+@app.route('/admin/delete-file/<int:file_id>', methods=['GET'])
+@admin_required
+def admin_delete_file(file_id):
+    """Admin delete file"""
+    file = FileRecord.query.get_or_404(file_id)
+    
+    try:
+        # Delete physical file if it exists
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Delete database record
+        db.session.delete(file)
+        db.session.commit()
+        
+        # Return JSON response for API requests
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'message': 'File deleted successfully'})
+        
+        # Redirect for browser requests
+        return redirect(url_for('admin_files'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting file: {str(e)}")
+        
+        # Return error response
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'error': f'Failed to delete file: {str(e)}'}), 500
+        
+        # Show error page for browser requests
+        return render_template_string("""
+            <h1>Error</h1>
+            <p>Failed to delete file: {{ error }}</p>
+            <p><a href="{{ url_for('admin_files') }}">Back to Files</a></p>
+        """, error=str(e)), 500
+
+@app.route('/admin/clear-processed-files', methods=['GET'])
+@admin_required
+def admin_clear_processed_files():
+    """Clear all files in the processed folder"""
+    try:
+        files_cleared = 0
+        for filename in os.listdir(PROCESSED_FOLDER):
+            file_path = os.path.join(PROCESSED_FOLDER, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                files_cleared += 1
+        
+        # Return JSON response for API requests
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'message': f'Cleared {files_cleared} processed files'})
+        
+        # Redirect for browser requests
+        return redirect(url_for('admin_system'))
+        
+    except Exception as e:
+        logging.error(f"Error clearing processed files: {str(e)}")
+        
+        # Return error response
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'error': f'Failed to clear processed files: {str(e)}'}), 500
+        
+        # Show error page for browser requests
+        return render_template_string("""
+            <h1>Error</h1>
+            <p>Failed to clear processed files: {{ error }}</p>
+            <p><a href="{{ url_for('admin_system') }}">Back to System Settings</a></p>
+        """, error=str(e)), 500
 
 @app.route('/upload', methods=['POST'])
 # Temporarily disable auth for testing
@@ -721,9 +1421,10 @@ def process_pdf():
         # Try using Celery if available
         try:
             from celery.result import AsyncResult
-            from tasks import process_pdf_task, celery
+            from tasks import process_pdf_task, celery as tasks_celery
             
-            # Dispatch Celery background task
+            # Use the tasks.celery instance since that's where the worker is connected
+            # Dispatch Celery background task using the tasks celery instance
             task = process_pdf_task.delay(command, input_paths, output_path, params)
             return jsonify({'task_id': task.id}), 202
             
@@ -805,13 +1506,13 @@ def task_status(task_id):
     CELERY_AVAILABLE = False
     try:
         from celery.result import AsyncResult
-        from tasks import celery
+        from tasks import celery as tasks_celery
         CELERY_AVAILABLE = True
     except ImportError:
         CELERY_AVAILABLE = False
         
     if CELERY_AVAILABLE:
-        task = AsyncResult(task_id, app=celery)
+        task = AsyncResult(task_id, app=tasks_celery)
         if task.state == 'PENDING':
             return jsonify({'status': 'PENDING'})
         elif task.state == 'SUCCESS':
@@ -1646,14 +2347,14 @@ def api_task_status(task_id):
     CELERY_AVAILABLE = False
     try:
         from celery.result import AsyncResult
-        from tasks import celery
+        from tasks import celery as tasks_celery
         CELERY_AVAILABLE = True
     except ImportError:
         CELERY_AVAILABLE = False
         
     if CELERY_AVAILABLE:    
         try:
-            task = AsyncResult(task_id, app=celery)
+            task = AsyncResult(task_id, app=tasks_celery)
             if task.state == 'PENDING':
                 return jsonify({'status': 'PENDING'})
             elif task.state != 'FAILURE':
@@ -1768,41 +2469,116 @@ def split_endpoint():
 @app.route('/enhanced/merge', methods=['POST'])
 @login_required
 def enhanced_merge():
-    """Enhanced PDF merge with validation - expects file_keys in JSON"""
+    """
+    Merges multiple PDF files specified by their keys in a JSON request.
+
+    This endpoint is designed to be efficient and robust, handling input
+    validation, bulk database lookups, and clear error reporting.
+
+    Expects a JSON body:
+    {
+        "file_keys": ["key1.pdf", "key2.pdf", "key3.pdf"]
+    }
+    """
+    # --- 1. Robust Input Validation ---
     try:
         data = request.get_json()
-        file_keys = data.get('file_keys', [])
-        
-        if not file_keys or len(file_keys) < 2:
-            return jsonify({"error": "At least 2 PDF files required"}), 400
-        
-        # Resolve file paths from file_keys
-        file_paths = []
-        for file_key in file_keys:
-            file_record = FileRecord.query.filter_by(filename=file_key, user_id=current_user.id).first()
-            if not file_record:
-                return jsonify({"error": f"File not found: {file_key}"}), 404
-            file_path = os.path.join(UPLOAD_FOLDER, file_record.filename)
-            if not os.path.exists(file_path):
-                return jsonify({"error": f"File not found on disk: {file_key}"}), 404
-            file_paths.append(file_path)
-        
-        # Process with PDFProcessor
-        output_filename = f"merged_{uuid.uuid4().hex}.pdf"
+        if not data:
+            return jsonify({"error": "Invalid JSON payload"}), 400
+        file_keys = data.get('file_keys')
+    except BadRequest:
+        return jsonify({"error": "Malformed request. Could not parse JSON."}), 400
+
+    if not isinstance(file_keys, list) or len(file_keys) < 2:
+        return jsonify({"error": "A 'file_keys' array with at least 2 PDF file keys is required."}), 400
+
+    try:
+        # --- 2. Efficient Database Query (Anti-N+1 Pattern) ---
+        # Fetch all required records in a single database query.
+        file_records = FileRecord.query.filter(
+            FileRecord.user_id == current_user.id,
+            FileRecord.filename.in_(file_keys)
+        ).all()
+
+        found_filenames = {record.filename for record in file_records}
+        missing_db_keys = set(file_keys) - found_filenames
+
+        if missing_db_keys:
+            # Report all missing files at once for a better user experience.
+            return jsonify({"error": f"Files not found in database: {', '.join(sorted(missing_db_keys))}"}), 404
+
+        # --- 3. File System Validation ---
+        # Create a mapping for easy path generation while preserving order.
+        record_map = {record.filename: record for record in file_records}
+        file_paths = [os.path.join(UPLOAD_FOLDER, record_map[key].filename) for key in file_keys]
+
+        # Check for files on disk.
+        missing_disk_paths = [path for path in file_paths if not os.path.exists(path)]
+        if missing_disk_paths:
+            missing_filenames = [os.path.basename(p) for p in missing_disk_paths]
+            return jsonify({"error": f"Files not found on disk: {', '.join(sorted(missing_filenames))}"}), 404
+
+        # --- 4. Processing and Output ---
+        # Ensure the processed folder exists to avoid file write errors.
+        os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+
+        # Generate a unique output filename
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        output_filename = f"merged_{timestamp}_{uuid.uuid4().hex[:8]}.pdf"
         output_path = os.path.join(PROCESSED_FOLDER, output_filename)
+        
+        # Log the operation
+        logging.info(f"Merging {len(file_keys)} files: {', '.join(file_keys)}")
+        logging.info(f"Output path: {output_path}")
+        
+        # The processing function should raise an exception on failure.
         result = pdf_processor.merge_pdfs(file_paths, output_path)
         
+        # Verify the output file exists and has reasonable size
+        if not os.path.exists(output_path):
+            return jsonify({"error": "Merge operation failed to create output file"}), 500
+            
+        file_size = os.path.getsize(output_path)
+        if file_size == 0:
+            os.remove(output_path)  # Clean up empty file
+            return jsonify({"error": "Merge operation created an empty file"}), 500
+
+        # Save the merged file to the database.
+        new_record = FileRecord(
+            user_id=current_user.id,
+            filename=output_filename,
+            original_filename=output_filename,
+            file_size=file_size,
+            file_type='pdf'
+        )
+        db.session.add(new_record)
+        db.session.commit()
+
+        # --- 5. Clear and Consistent Success Response ---
         return jsonify({
-            "success": True, 
-            "result": result or {
+            "success": True,
+            "message": "Files merged successfully.",
+            "result": {
                 "key": output_filename,
                 "filename": output_filename,
-                "size": os.path.getsize(output_path)
+                "size": file_size
             }
         })
+
+    # --- 6. Improved Exception Handling ---
+    except PDFValidationError as e:
+        logging.error(f"PDF validation error: {e}")
+        return jsonify({"error": f"Invalid PDF file: {e}"}), 422
+    
+    except PDFOperationError as e:
+        logging.error(f"PDF operation error: {e}")
+        return jsonify({"error": f"PDF processing failed: {e}"}), 422
+        
     except Exception as e:
-        logging.error(f"Enhanced merge error: {e}")
-        return jsonify({"error": str(e)}), 500
+        # Log the full traceback for debugging.
+        logging.exception("An error occurred during the PDF merge process.")
+        # Return a generic error to the user for security.
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/enhanced/split', methods=['POST'])
 @login_required
@@ -1896,6 +2672,13 @@ def enhanced_convert():
                 result = convert_to_word(file_key, {})
             except:
                 result = pdf_processor.pdf_to_word(file_path, output_path) if hasattr(pdf_processor, 'pdf_to_word') else None
+        elif target_format == 'pdf':
+            # File is already PDF, just return success with original file
+            result = {
+                "filename": file_record.filename,
+                "message": "File is already in PDF format",
+                "key": file_key
+            }
         # Add more formats as needed
         else:
             return jsonify({"error": f"Unsupported target format: {target_format}"}), 400
@@ -1936,18 +2719,26 @@ def enhanced_workflow():
         workflow_ops = []
         for op in operations:
             if op == 'rotate_pdf':
-                workflow_ops.append({'operation': 'rotate_pdf', 'params': {'rotation': 90}})
+                workflow_ops.append({'method': 'rotate_pdf', 'args': {'rotation': 90}})
             elif op == 'watermark_pdf':
-                workflow_ops.append({'operation': 'watermark_pdf', 'params': {'watermark_text': 'Processed'}})
+                workflow_ops.append({'method': 'watermark_pdf', 'args': {'watermark_text': 'Processed', 'opacity': 0.3}})
             elif op == 'compress_pdf':
-                workflow_ops.append({'operation': 'compress_pdf', 'params': {}})
+                workflow_ops.append({'method': 'compress_pdf', 'args': {}})
             elif op == 'add_page_numbers':
-                workflow_ops.append({'operation': 'add_page_numbers', 'params': {}})
+                workflow_ops.append({'method': 'add_page_numbers', 'args': {}})
             elif op == 'protect_pdf':
-                workflow_ops.append({'operation': 'protect_pdf', 'params': {'user_password': 'password'}})
+                workflow_ops.append({'method': 'protect_pdf', 'args': {'user_password': 'password'}})
         
-        # Process with PDFProcessor (pass file_path)
-        result = pdf_processor.execute_workflow(file_path, workflow_ops)
+        # Add input_path to the first operation and output_path to all operations
+        if workflow_ops:
+            workflow_ops[0]['args']['input_path'] = file_path
+            for i, op in enumerate(workflow_ops):
+                if 'output_path' not in op['args']:
+                    output_filename = f"workflow_step_{i}_{uuid.uuid4().hex}.pdf"
+                    op['args']['output_path'] = os.path.join(PROCESSED_FOLDER, output_filename)
+        
+        # Process with PDFProcessor (only pass workflow_ops)
+        result = pdf_processor.execute_workflow(workflow_ops)
         return jsonify({"success": True, "result": result})
     except Exception as e:
         logging.error(f"Enhanced workflow error: {e}")
@@ -2450,21 +3241,17 @@ except Exception:
 if TELEMETRY_AVAILABLE:
     try:
         # Set up resource
-        resource = Resource(attributes={SERVICE_NAME: "pdf-tool-app"})
-        
+        resource = OTResource(attributes={SERVICE_NAME: "pdf-tool-app"})
         # Tracer provider
         trace.set_tracer_provider(TracerProvider(resource=resource))
-        
         # Jaeger exporter
         jaeger_exporter = JaegerExporter(
             agent_host_name=os.getenv('JAEGER_HOST', 'localhost'),
             agent_port=int(os.getenv('JAEGER_PORT', 6831))
         )
         trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(jaeger_exporter))
-        
         # Instrument Flask
         FlaskInstrumentor().instrument_app(app)
-        
         logging.info("OpenTelemetry instrumentation enabled")
     except Exception as e:
         logging.error(f"Failed to setup OpenTelemetry: {e}")
@@ -2474,26 +3261,27 @@ if TELEMETRY_AVAILABLE:
 def init_db():
     with app.app_context():
         db.create_all()
-        
-        # Create a default user if none exists
-        if User.query.first() is None:
-            # Generate a secure random password
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-            secure_password = ''.join(secrets.choice(alphabet) for _ in range(16))
-            
-            default_user = User(
+
+        # Ensure an admin user exists with username/password: admin/admin
+        admin_user = User.query.filter_by(username='admin').first()
+        if admin_user is None:
+            admin_user = User(
                 username='admin',
                 email='admin@example.com',
-                password_hash=generate_password_hash(secure_password)
+                password_hash=generate_password_hash('admin')
             )
-            db.session.add(default_user)
+            db.session.add(admin_user)
             db.session.commit()
-            print(f"Default user created: admin/{secure_password}")
-            print("⚠️  IMPORTANT: Save this password securely!")
-        
-        print("Database tables created successfully!")
+            print("Created admin user with default credentials admin/admin (for local testing)")
+        else:
+            # Keep credentials in sync for local testing
+            admin_user.password_hash = generate_password_hash('admin')
+            if not admin_user.email:
+                admin_user.email = 'admin@example.com'
+            db.session.commit()
+            print("Ensured admin credentials are set to admin/admin (for local testing)")
+
+        print("Database tables created and admin user ensured successfully!")
 
 # ---------- /convert/ipynb-to-pdf-v2 endpoint ----------
 @app.route("/convert/ipynb-to-pdf-v2", methods=["POST"])

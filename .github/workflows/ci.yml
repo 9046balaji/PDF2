@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:6
+        ports: ['6379:6379']
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+      - name: Install backend deps
+        run: |
+          python -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+      - name: Run linters (get_errors)
+        run: |
+          . venv/bin/activate
+          pip install flake8
+          flake8 .
+      - name: Run backend tests
+        run: |
+          . venv/bin/activate
+          pytest -q
+      - name: Install frontend deps & build
+        run: |
+          npm ci --prefix static
+          npm run build --prefix static

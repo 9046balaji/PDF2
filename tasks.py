@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 # Placeholder for xAI Grok API key and endpoint. Replace with actual values.
 # See https://x.ai/api for details on how to obtain and use the API.
-GROK_API_KEY = os.getenv('GROK_API_KEY', 'SET_GROK_API_KEY_ENV_VAR_IN_PRODUCTION')
+from config_loader import get_env, get_grok_api_key
+GROK_API_KEY = get_grok_api_key()
 GROK_API_ENDPOINT = 'https://api.x.ai/v1/chat/completions'  # Example endpoint; check docs for exact.
 
 def extract_pdf_text(fpath: str) -> str:
@@ -261,9 +262,10 @@ from celery import Celery
 celery = Celery('pdf_tool')
 
 # Use Redis as broker and backend
+from config_loader import get_celery_broker_url, get_celery_result_backend
 celery.conf.update(
-    broker_url=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
-    result_backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0'),
+    broker_url=get_celery_broker_url(),
+    result_backend=get_celery_result_backend(),
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
