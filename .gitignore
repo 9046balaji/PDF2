@@ -1,5 +1,10 @@
-# Python
+# Dependencies
+## Ignore node_modules folders
+node_modules/
+
+ # Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -32,6 +37,8 @@ venv.bak/
 # Project specific
 run/
 samples/
+powershell/
+shellscripts/
 
 # Test Results
 results/
@@ -233,6 +240,7 @@ tests/verify_five_tests.py
 # Also exclude test-related JSON files
 *_test_report.json
 *_test_results.json
+pdf_operations_test_report.json
 
 # Static directory specifics
 static/.gitignore
@@ -261,6 +269,7 @@ notes.txt
 *.todo
 *.draft
 local_settings.json
+file_organization_log.txt
 
 # Backup files
 *.bak
@@ -303,6 +312,7 @@ generated/
 
 # Jupyter notebooks and test images
 *.ipynb
+pdf_operations_test.ipynb
 *.png
 test-*.png
 
@@ -347,3 +357,24 @@ static/*.bundle.js
 static/*.bundle.js.map
 static/*.LICENSE.txt
 docker-compose-advanced.yml
+ # Test files
+/tests/
+
+# Unused application files
+init_db.py
+inspect_pdf_operations.py
+models.py
+pdf_tool.py
+run_test_server.py
+sdk.py
+update_schema.ps1
+update_schema.sh
+bin/
+powershell/
+readmi_files/
+run/
+samples/
+scripts/
+shellscripts/
+SQL/
+test_pdfs/

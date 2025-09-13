@@ -9,8 +9,11 @@
     "build": "webpack --mode production && node optimize-login-bg.js",
     "build:optimized": "node build.js",
     "dev": "webpack --mode development --watch",
+    "serve": "webpack serve --mode development --open",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "optimize-images": "node optimize-login-bg.js"
+    "optimize-images": "node optimize-login-bg.js",
+    "analyze": "webpack --mode production --analyze",
+    "clean": "rimraf dist"
   },
   "keywords": [
     "pdf",

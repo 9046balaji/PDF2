@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Operations Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .card {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fff;
+        }
+        .file-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .file-meta {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .file-actions {
+            margin-top: 10px;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .upload-form {
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            padding: 10px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Operations Dashboard</h1>
+        
+        <div class="card">
+            <h2>Upload a PDF</h2>
+            <form id="upload-form" class="upload-form" action="/pdf/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".pdf" required>
+                <button type="submit" class="btn">Upload</button>
+            </form>
+            <div id="message" class="message" style="display: none;"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Your PDF Files</h2>
+            <div id="file-list-container">
+                <p>Loading files...</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>PDF Operations</h2>
+            <div id="operations">
+                <h3>Merge PDFs</h3>
+                <p>Select files from your list and click the "Merge Selected" button.</p>
+                <div id="selected-files">
+                    <p>No files selected</p>
+                </div>
+                <button id="merge-btn" class="btn" disabled>Merge Selected</button>
+                
+                <h3>Other Operations</h3>
+                <p>Select a file from your list to perform these operations:</p>
+                <ul>
+                    <li>Extract Text - Extract all text content from a PDF</li>
+                    <li>Split PDF - Split a PDF into individual pages</li>
+                    <li>Extract Pages - Extract specific pages from a PDF</li>
+                    <li>Rotate PDF - Rotate all pages in a PDF</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('upload-form');
+            const messageDiv = document.getElementById('message');
+            const fileListContainer = document.getElementById('file-list-container');
+            const selectedFiles = document.getElementById('selected-files');
+            const mergeBtn = document.getElementById('merge-btn');
+            
+            // Selected files for merging
+            const selectedFilesMap = new Map();
+            
+            // Load files on page load
+            loadFiles();
+            
+            // Handle file upload
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(uploadForm);
+                
+                fetch('/pdf/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage(data.message, 'success');
+                        uploadForm.reset();
+                        loadFiles();
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error uploading file: ' + error, 'error');
+                });
+            });
+            
+            // Handle merge button click
+            mergeBtn.addEventListener('click', function() {
+                if (selectedFilesMap.size < 2) {
+                    showMessage('Please select at least two files to merge.', 'error');
+                    return;
+                }
+                
+                fetch('/pdf/merge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_ids: Array.from(selectedFilesMap.keys())
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage('Files merged successfully!', 'success');
+                        window.location.href = data.download_url;
+                        // Clear selected files
+                        selectedFilesMap.clear();
+                        updateSelectedFilesList();
+                        loadFiles();
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error merging files: ' + error, 'error');
+                });
+            });
+            
+            // Function to load files
+            function loadFiles() {
+                fetch('/pdf/api/files')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        fileListContainer.innerHTML = '<p>No files found. Upload a PDF to get started.</p>';
+                    } else {
+                        let html = '<ul class="file-list">';
+                        data.forEach(file => {
+                            html += `
+                                <li class="file-item" data-id="${file.id}">
+                                    <div class="file-name">${file.filename}</div>
+                                    <div class="file-meta">
+                                        <span>Size: ${formatFileSize(file.filesize)}</span>
+                                        <span>Uploaded: ${formatDate(file.created_at)}</span>
+                                    </div>
+                                    <div class="file-actions">
+                                        <a href="/pdf/download/${file.id}" class="btn">Download</a>
+                                        <button class="btn extract-text-btn" data-id="${file.id}">Extract Text</button>
+                                        <button class="btn split-btn" data-id="${file.id}">Split PDF</button>
+                                        <button class="btn extract-pages-btn" data-id="${file.id}">Extract Pages</button>
+                                        <button class="btn rotate-btn" data-id="${file.id}">Rotate PDF</button>
+                                        <button class="btn select-merge-btn" data-id="${file.id}" data-name="${file.filename}">
+                                            ${selectedFilesMap.has(file.id) ? 'Deselect' : 'Select for Merge'}
+                                        </button>
+                                    </div>
+                                </li>
+                            `;
+                        });
+                        html += '</ul>';
+                        fileListContainer.innerHTML = html;
+                        
+                        // Add event listeners to buttons
+                        addButtonEventListeners();
+                    }
+                })
+                .catch(error => {
+                    fileListContainer.innerHTML = '<p>Error loading files: ' + error + '</p>';
+                });
+            }
+            
+            // Function to add event listeners to buttons
+            function addButtonEventListeners() {
+                // Extract text buttons
+                document.querySelectorAll('.extract-text-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-id');
+                        extractText(fileId);
+                    });
+                });
+                
+                // Split PDF buttons
+                document.querySelectorAll('.split-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-id');
+                        splitPdf(fileId);
+                    });
+                });
+                
+                // Extract pages buttons
+                document.querySelectorAll('.extract-pages-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-id');
+                        promptExtractPages(fileId);
+                    });
+                });
+                
+                // Rotate PDF buttons
+                document.querySelectorAll('.rotate-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-id');
+                        promptRotate(fileId);
+                    });
+                });
+                
+                // Select for merge buttons
+                document.querySelectorAll('.select-merge-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-id');
+                        const fileName = this.getAttribute('data-name');
+                        
+                        if (selectedFilesMap.has(fileId)) {
+                            selectedFilesMap.delete(fileId);
+                            this.textContent = 'Select for Merge';
+                        } else {
+                            selectedFilesMap.set(fileId, fileName);
+                            this.textContent = 'Deselect';
+                        }
+                        
+                        updateSelectedFilesList();
+                    });
+                });
+            }
+            
+            // Function to extract text
+            function extractText(fileId) {
+                fetch(`/pdf/extract_text/${fileId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage('Text extracted successfully!', 'success');
+                        window.location.href = data.download_url;
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error extracting text: ' + error, 'error');
+                });
+            }
+            
+            // Function to split PDF
+            function splitPdf(fileId) {
+                if (!confirm('This will split the PDF into individual pages. Continue?')) {
+                    return;
+                }
+                
+                fetch(`/pdf/split/${fileId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage(`PDF split successfully into ${data.file_ids.length} pages!`, 'success');
+                        loadFiles();
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error splitting PDF: ' + error, 'error');
+                });
+            }
+            
+            // Function to prompt for page extraction
+            function promptExtractPages(fileId) {
+                const pages = prompt('Enter page numbers to extract (comma-separated, starting from 0):', '0,1,2');
+                if (pages === null) return;
+                
+                const pageNumbers = pages.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
+                
+                if (pageNumbers.length === 0) {
+                    showMessage('Please enter valid page numbers.', 'error');
+                    return;
+                }
+                
+                fetch(`/pdf/extract_pages/${fileId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pages: pageNumbers
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage('Pages extracted successfully!', 'success');
+                        window.location.href = data.download_url;
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error extracting pages: ' + error, 'error');
+                });
+            }
+            
+            // Function to prompt for rotation
+            function promptRotate(fileId) {
+                const angles = {
+                    '90': '90° Clockwise',
+                    '180': '180°',
+                    '270': '90° Counter-clockwise'
+                };
+                
+                const angle = prompt('Enter rotation angle (90, 180, or 270):', '90');
+                if (angle === null) return;
+                
+                const parsedAngle = parseInt(angle.trim());
+                
+                if (![90, 180, 270].includes(parsedAngle)) {
+                    showMessage('Please enter a valid rotation angle (90, 180, or 270).', 'error');
+                    return;
+                }
+                
+                fetch(`/pdf/rotate/${fileId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rotation_angle: parsedAngle
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage('PDF rotated successfully!', 'success');
+                        window.location.href = data.download_url;
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error rotating PDF: ' + error, 'error');
+                });
+            }
+            
+            // Function to update selected files list
+            function updateSelectedFilesList() {
+                if (selectedFilesMap.size === 0) {
+                    selectedFiles.innerHTML = '<p>No files selected</p>';
+                    mergeBtn.disabled = true;
+                } else {
+                    let html = '<ul>';
+                    selectedFilesMap.forEach((name, id) => {
+                        html += `<li>${name} <button class="btn remove-btn" data-id="${id}">Remove</button></li>`;
+                    });
+                    html += '</ul>';
+                    selectedFiles.innerHTML = html;
+                    mergeBtn.disabled = false;
+                    
+                    // Add event listeners to remove buttons
+                    document.querySelectorAll('.remove-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const fileId = this.getAttribute('data-id');
+                            selectedFilesMap.delete(fileId);
+                            
+                            // Update the button text in the file list
+                            const selectBtn = document.querySelector(`.select-merge-btn[data-id="${fileId}"]`);
+                            if (selectBtn) {
+                                selectBtn.textContent = 'Select for Merge';
+                            }
+                            
+                            updateSelectedFilesList();
+                        });
+                    });
+                }
+            }
+            
+            // Function to show message
+            function showMessage(message, type) {
+                messageDiv.textContent = message;
+                messageDiv.className = 'message ' + type;
+                messageDiv.style.display = 'block';
+                
+                // Hide message after 5 seconds
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Helper function to format file size
+            function formatFileSize(bytes) {
+                if (bytes < 1024) {
+                    return bytes + ' B';
+                } else if (bytes < 1048576) {
+                    return (bytes / 1024).toFixed(2) + ' KB';
+                } else {
+                    return (bytes / 1048576).toFixed(2) + ' MB';
+                }
+            }
+            
+            // Helper function to format date
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -8,16 +8,14 @@ const ImageMinimizerPlugin = require('image-minimizer-webpack-plugin');
 
 module.exports = (env, argv) => ({
   entry: {
-    app: './js/app.js',
-    enhancedPDFTools: './js/EnhancedPDFTools.js',
-    enhancedSearchComponent: './js/EnhancedSearchComponent.js'
+    app: './src/js/app.js',
+    enhancedPDFTools: './src/js/components/EnhancedPDFTools.js',
+    enhancedSearchComponent: './src/js/components/EnhancedSearchComponent.js'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
-    // Use app.bundle.js as specified in requirements
-    filename: '[name].bundle.js',
+    filename: '[name].[contenthash].js',
     chunkFilename: '[name].[chunkhash].chunk.js',
-    // Public path for assets
     publicPath: ''
   },
   module: {
@@ -27,7 +25,6 @@ module.exports = (env, argv) => ({
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
-          // .babelrc file will be used for configuration
         }
       },
       {
@@ -70,7 +67,11 @@ module.exports = (env, argv) => ({
   resolve: {
     extensions: ['.js', '.jsx', '.css'],
     alias: {
-      '@': path.resolve(__dirname, 'js'),
+      '@': path.resolve(__dirname, 'src/js'),
+      '@components': path.resolve(__dirname, 'src/js/components'),
+      '@utils': path.resolve(__dirname, 'src/js/utils'),
+      '@services': path.resolve(__dirname, 'src/js/services'),
+      '@assets': path.resolve(__dirname, 'src/assets'),
     },
   },
   // Development settings
@@ -164,7 +165,7 @@ module.exports = (env, argv) => ({
     new CleanWebpackPlugin(),
     // Main application HTML
     new HtmlWebpackPlugin({
-      template: './html/index.html',
+      template: './src/templates/index.html',
       filename: 'index.html',
       chunks: ['app', 'common'],
       inject: true,
@@ -186,19 +187,19 @@ module.exports = (env, argv) => ({
     }),
     // Login HTML files
     new HtmlWebpackPlugin({
-      template: './login/index.html',
+      template: './src/templates/login/index.html',
       filename: 'login/index.html',
       chunks: ['common'],
       minify: argv.mode === 'production',
     }),
     new HtmlWebpackPlugin({
-      template: './login/register.html',
+      template: './src/templates/login/register.html',
       filename: 'login/register.html',
       chunks: ['common'],
       minify: argv.mode === 'production',
     }),
     new HtmlWebpackPlugin({
-      template: './login/reset.html',
+      template: './src/templates/login/reset.html',
       filename: 'login/reset.html',
       chunks: ['common'],
       minify: argv.mode === 'production',
@@ -206,14 +207,14 @@ module.exports = (env, argv) => ({
     // Copy static assets
     new CopyWebpackPlugin({
       patterns: [
-        { from: 'favicon.ico', to: '' },
+        { from: 'src/assets/favicon.ico', to: '' },
         // We'll handle the login-bg.png separately with optimize-login-bg.js
       ],
     }),
     // Extract CSS into separate files in production
     ...(argv.mode === 'production' 
       ? [new MiniCssExtractPlugin({
-          filename: 'css/[name].css',
+          filename: 'css/[name].[contenthash].css',
         })]
       : []
     )

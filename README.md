@@ -4,6 +4,13 @@ A comprehensive, enterprise-grade PDF processing application with AI-powered fea
 
 ## 🚀 **New Features (Latest Update)**
 
+### **Enhanced User Management & File Tracking**
+- **User Activity Tracking**: Track login history, IP addresses, and device information
+- **File Conversion Tracking**: Complete history of file operations and conversions
+- **Enhanced Security**: Login attempt monitoring and failure tracking
+- **PostgreSQL Tools Integration**: Leveraging PostgreSQL 2.0.12 for Windows
+- **Admin Dashboard**: Comprehensive system statistics and monitoring
+
 ### **Enhanced PDF Processing Engine**
 - **Advanced PDF Operations**: 50+ PDF manipulation features with validation
 - **Document Conversion**: Support for Word, PowerPoint, Excel, HTML ↔ PDF
@@ -80,6 +87,8 @@ A comprehensive, enterprise-grade PDF processing application with AI-powered fea
 - **Form Validation**: Client-side input validation
 - **Real-time Updates**: Progress tracking and status updates
 - **File Management**: Drag-and-drop upload support
+- **Modular Structure**: Organized components, utilities, and services
+- **Optimized Assets**: Content hash-based cache busting for CSS and JS
 
 ### **AI Integration**
 - **xAI Grok API**: Advanced language model integration
@@ -100,9 +109,17 @@ PDF2/
 │
 ├── 🌐 **FRONTEND**
 │   └── static/
+│       ├── src/                 # New modular structure
+│       │   ├── js/              # JavaScript files
+│       │   │   ├── components/  # UI components
+│       │   │   ├── utils/       # Helper functions
+│       │   │   └── services/    # API clients
+│       │   ├── css/             # Stylesheets
+│       │   ├── assets/          # Images and fonts
+│       │   └── templates/       # HTML templates
 │       ├── index.html           # Main HTML page (23 lines)
-│       ├── app.js              # React frontend (2,505 lines)
-│       └── favicon.ico         # Website icon
+│       ├── app.js               # React frontend (2,505 lines)
+│       └── favicon.ico          # Website icon
 │
 ├── 📚 **DOCUMENTATION**
 │   ├── README.md               # Main documentation (this file)
@@ -391,6 +408,90 @@ pytest
 - Path sanitization for downloads
 - Authenticated access for user data
 - Environment variable management with secure fallbacks
+
+## 📚 **API Reference**
+
+### Authentication API
+
+#### Register a New User
+```http
+POST /register
+Content-Type: application/json
+
+{
+  "username": "user123",
+  "email": "user@example.com",
+  "password": "securepassword"
+}
+```
+
+#### User Login
+```http
+POST /login
+Content-Type: application/json
+
+{
+  "username": "user123",
+  "password": "securepassword"
+}
+```
+
+#### User Logout
+```http
+GET /logout
+```
+
+#### Check Authentication Status
+```http
+GET /auth/check
+```
+
+#### User Profile
+```http
+GET /profile
+```
+
+#### User Activity History
+```http
+GET /profile/activity
+```
+
+### File Management API
+
+#### Upload File
+```http
+POST /upload
+Content-Type: multipart/form-data
+
+file: [Binary File Data]
+```
+
+#### List User Files
+```http
+GET /files
+```
+
+#### Download File
+```http
+GET /download?key=<file_key>
+```
+
+### Admin API
+
+#### Admin Dashboard
+```http
+GET /admin/dashboard
+```
+
+#### System Statistics
+```http
+GET /admin/system-stats
+```
+
+#### User Management
+```http
+GET /admin/users
+```
 - Credentials stored only in `.env` files (excluded from version control)
 - Production configuration checks to prevent using development defaults
 - Secure Docker configuration with non-sensitive placeholders
@@ -400,13 +501,31 @@ pytest
 - Basic synchronous processing for core routes
 - Optional Celery for async/AI routes
 
+## 📁 **Project Organization**
+
+This project follows strict file organization guidelines:
+
+- **PowerShell Scripts (.ps1)**: Store in the `/powershell` directory
+- **Batch Files (.bat)**: Store in the `/run` directory
+- **Shell Scripts (.sh)**: Store in the `/shellscripts` directory
+- **Additional Documentation**: Store in the `/readmi_files` directory
+- **Test Files**: Store in the `/tests` directory
+
+For complete details, see [File Organization Guidelines](readmi_files/FILE_ORGANIZATION.md)
+
+To validate file organization, run:
+```bash
+python tests/validate_file_organization.py
+```
+
 ## 🤝 **Contributing**
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new features
-5. Submit a pull request
+5. Follow the [file organization guidelines](readmi_files/FILE_ORGANIZATION.md)
+6. Submit a pull request
 
 ## 📄 **License**
 

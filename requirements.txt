@@ -3,6 +3,7 @@ flask
 flask-sqlalchemy
 flask-login
 werkzeug
+alembic
 
 # PDF Processing Libraries
 pypdf

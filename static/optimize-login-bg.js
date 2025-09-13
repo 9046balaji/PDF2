@@ -11,9 +11,22 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
-// Path to the login background image
-const inputPath = path.join(__dirname, 'login', 'img', 'login-bg.png');
-const outputPath = path.join(outputDir, 'login-bg.png');
+// Original image location
+const originalPath = path.join(__dirname, 'login', 'img', 'login-bg.png');
+// Fallback to src structure if defined
+const srcPath = path.join(__dirname, 'src', 'assets', 'images', 'login-bg.png');
+
+// Determine which path to use
+let inputPath = originalPath;
+if (!fs.existsSync(originalPath) && fs.existsSync(srcPath)) {
+  inputPath = srcPath;
+  console.log(`Using image from src structure: ${srcPath}`);
+} else if (!fs.existsSync(originalPath)) {
+  console.error(`Error: Login background image not found at either:
+- ${originalPath}
+- ${srcPath}`);
+  process.exit(1);
+}
 
 // Optimize the image
 console.log(`Optimizing login background image: ${inputPath}`);
@@ -29,11 +42,9 @@ sharp(inputPath)
     console.log(`Image optimization complete:
 - Original size: ${(originalSize / 1024).toFixed(2)} KB
 - Optimized size: ${(optimizedSize / 1024).toFixed(2)} KB
-- Reduction: ${reductionPercent}%
-- Dimensions: ${info.width}x${info.height}
-- Output path: ${path.join(outputDir, 'login-bg.jpg')}`);
+- Reduction: ${reductionPercent}%`);
   })
-  .catch((err) => {
-    console.error('Error optimizing image:', err);
+  .catch(err => {
+    console.error('Error optimizing login background image:', err);
     process.exit(1);
   });

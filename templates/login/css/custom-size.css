@@ -1,0 +1,90 @@
+/* Custom styles to make login and register pages smaller */
+.login {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.login__form {
+    width: 65%;  /* Further reduced from 70% */
+    max-width: 250px; /* Reduced max-width from 280px */
+    padding: 1.25rem 1rem; /* Further reduced padding */
+    border-radius: 0.75rem;
+    transform: scale(0.9); /* Scale down the entire form */
+}
+
+.login__title {
+    font-size: 1.25rem; /* Even smaller title */
+    margin-bottom: 0.75rem;
+}
+
+.login__box {
+    margin-bottom: 0.65rem; /* Further reduced margin */
+    padding: 0.2rem 0.5rem; /* More compact padding */
+}
+
+.login__box-input {
+    height: 35px; /* Further reduced height */
+}
+
+.login__input {
+    font-size: 0.8rem; /* Smaller font size */
+    padding-left: 2.25rem; /* Adjusted padding */
+}
+
+.login__label {
+    font-size: 0.8rem; /* Smaller label */
+}
+
+.login__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.9; /* Slightly more transparent */
+}
+
+.login__button {
+    margin-top: 0.75rem; /* Further reduced margin */
+    padding: 0.5rem 1rem; /* Smaller padding */
+    font-size: 0.85rem; /* Smaller text size */
+    height: 35px; /* Fixed height */
+}
+
+.login__register,
+.login__forgot {
+    font-size: 0.75rem; /* Even smaller text */
+    margin-top: 0.5rem; /* Added smaller top margin */
+}
+
+.login__check {
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.login__check-input {
+    width: 14px;
+    height: 14px;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 576px) {
+    .login__form {
+        width: 80%;
+        max-width: 240px;
+        padding: 1rem 0.75rem;
+        transform: scale(0.85); /* Even smaller on mobile */
+    }
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 576px) {
+    .login__form {
+        width: 80%;
+        max-width: 250px;
+        padding: 1.25rem 0.85rem;
+    }
+    
+    .login__title {
+        font-size: 1.25rem;
+    }
+}

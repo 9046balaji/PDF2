@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_file, abort, render_template_string, url_for, redirect, session, current_app, render_template
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
@@ -123,7 +124,7 @@ from pdf_processor import PDFProcessor, PDFValidationError, PDFOperationError
 pdf_processor = PDFProcessor(max_file_size_mb=2048)
 
 # --- App Initialization ---
-app = Flask(__name__, static_folder='static/dist', static_url_path='')
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # Load environment variables from config_loader
 from config_loader import get_secret_key, get_database_url, get_api_key, is_debug_mode
@@ -133,6 +134,27 @@ secret_key = get_secret_key()
 app.config['SECRET_KEY'] = secret_key
 
 # Note: We don't initialize Celery here - we use the instance from tasks.py
+
+# Add route for app.bundle.js and other frontend bundles
+@app.route('/app.bundle.js')
+def app_bundle():
+    return send_from_directory(os.path.join(app.root_path, 'static/dist'), 'app.bundle.js')
+
+@app.route('/enhancedPDFTools.bundle.js')
+def enhanced_pdf_tools_bundle():
+    return send_from_directory(os.path.join(app.root_path, 'static/dist'), 'enhancedPDFTools.bundle.js')
+
+@app.route('/enhancedSearchComponent.bundle.js')
+def enhanced_search_component_bundle():
+    return send_from_directory(os.path.join(app.root_path, 'static/dist'), 'enhancedSearchComponent.bundle.js')
+
+@app.route('/static/js/AuthenticationManager.js')
+def authentication_manager_js():
+    return send_from_directory(os.path.join(app.root_path, 'static/js'), 'AuthenticationManager.js')
+
+@app.route('/static/js/auth-integration.js')
+def auth_integration_js():
+    return send_from_directory(os.path.join(app.root_path, 'static/js'), 'auth-integration.js')
 
 # Add a route to serve login static files from templates directory
 @app.route('/static/login/<path:filename>')
@@ -151,6 +173,18 @@ def login_static(filename):
 @app.route('/js/<path:filename>')
 def js_files(filename):
     return send_from_directory(os.path.join(app.root_path, 'static/js'), filename)
+
+# Health check endpoint
+
+# Add route for CSS files
+@app.route('/css/<path:filename>')
+def css_files(filename):
+    return send_from_directory(os.path.join(app.root_path, 'static/css'), filename)
+
+# Add route for favicon
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico')
 
 # Configure database with fallback
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
@@ -209,7 +243,12 @@ class User(UserMixin, db.Model):
     google_drive_token = db.Column(db.Text, nullable=True)  # For Google Drive integration
     webhook_url = db.Column(db.String(255), nullable=True)  # For Zapier/Make integration
     suggested_workflow = db.Column(db.JSON, nullable=True)  # For personalized workflows
+    last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
+    login_count = db.Column(db.Integer, default=0)  # Track number of logins
+    last_ip = db.Column(db.String(45), nullable=True)  # Store last IP address (IPv6 compatible)
+    user_agent = db.Column(db.String(255), nullable=True)  # Store browser/client info
     files = db.relationship('FileRecord', backref='user', lazy=True)
+    login_history = db.relationship('UserLoginHistory', backref='user', lazy=True)
 
 class FileRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -220,8 +259,15 @@ class FileRecord(db.Model):
     doc_type = db.Column(db.String(50), nullable=True)  # For document classification
     doc_metadata = db.Column(db.JSON, nullable=True)  # For document metadata
     upload_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_accessed = db.Column(db.DateTime, nullable=True)  # When file was last accessed
+    access_count = db.Column(db.Integer, default=0)  # How many times the file was accessed
+    page_count = db.Column(db.Integer, nullable=True)  # Number of pages in the PDF
+    storage_path = db.Column(db.String(255), nullable=True)  # Full path where file is stored
+    mimetype = db.Column(db.String(100), nullable=True)  # MIME type of the file
+    hash_md5 = db.Column(db.String(32), nullable=True)  # MD5 hash for deduplication
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)  # For team management
+    conversions = db.relationship('FileConversionRecord', backref='original_file', lazy=True)
 
 class ProcessingRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -248,6 +294,27 @@ class TeamMembership(db.Model):
     role = db.Column(db.String(20), nullable=False, default='member')  # 'admin' or 'member'
     joined_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     user = db.relationship('User', backref='team_memberships')
+
+class UserLoginHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    login_time = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv6-compatible length
+    user_agent = db.Column(db.String(255), nullable=True)
+    success = db.Column(db.Boolean, default=True)
+    device_info = db.Column(db.JSON, nullable=True)  # Store detailed device information
+
+class FileConversionRecord(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    original_file_id = db.Column(db.Integer, db.ForeignKey('file_record.id'), nullable=False)
+    output_file = db.Column(db.String(200), nullable=False)
+    conversion_type = db.Column(db.String(50), nullable=False)  # 'merge', 'split', 'compress', etc.
+    conversion_time = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    status = db.Column(db.String(20), default='completed')
+    file_size = db.Column(db.Integer, nullable=True)
+    processing_time_ms = db.Column(db.Integer, nullable=True)  # Performance tracking
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    pg_tools_version = db.Column(db.String(20), default='2.0.12')
 
 # --- Configuration ---
 UPLOAD_FOLDER = 'uploads'
@@ -335,7 +402,7 @@ def basic_auth_login():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 @login_manager.unauthorized_handler
 def handle_unauthorized():
@@ -397,6 +464,134 @@ def format_bytes(bytes, decimals=2):
     i = int(math.floor(math.log(bytes) / math.log(k)))
     return f"{round(bytes / math.pow(k, i), dm)} {sizes[i]}"
 
+def record_file_conversion(original_file_id, output_file_path, conversion_type, user_id=None):
+    """
+    Record a file conversion operation in the database
+    
+    Args:
+        original_file_id: ID of the original file in the FileRecord table
+        output_file_path: Path to the output file
+        conversion_type: Type of conversion (merge, split, compress, etc.)
+        user_id: ID of the user who performed the conversion
+    
+    Returns:
+        FileConversionRecord instance
+    """
+    try:
+        start_time = time.time()
+        file_size = os.path.getsize(output_file_path) if os.path.exists(output_file_path) else None
+        
+        # If user_id is not provided, try to get from current_user
+        if user_id is None and current_user.is_authenticated:
+            user_id = current_user.id
+        
+        # Default to user ID 1 for testing/anonymous
+        user_id = user_id or 1
+        
+        # Record the conversion
+        conversion_record = FileConversionRecord(
+            original_file_id=original_file_id,
+            output_file=os.path.basename(output_file_path),
+            conversion_type=conversion_type,
+            file_size=file_size,
+            processing_time_ms=int((time.time() - start_time) * 1000),
+            user_id=user_id,
+            pg_tools_version='2.0.12\\Windows'
+        )
+        
+        db.session.add(conversion_record)
+        db.session.commit()
+        
+        # Update access count for original file
+        original_file = db.session.get(FileRecord, original_file_id)
+        if original_file:
+            original_file.last_accessed = datetime.now(timezone.utc)
+            original_file.access_count += 1
+            db.session.commit()
+            
+        return conversion_record
+    except Exception as e:
+        logging.exception(f"Failed to record file conversion: {e}")
+        db.session.rollback()
+        return None
+
+def get_file_by_key(file_key, user_id=None, update_access=True):
+    """
+    Get a file record by its unique key, optionally updating access statistics
+    
+    Args:
+        file_key: The unique filename of the file
+        user_id: Optional user ID to filter by (defaults to current_user.id)
+        update_access: Whether to update last_accessed and access_count
+        
+    Returns:
+        FileRecord instance or None if not found
+    """
+    try:
+        # Use current user ID if authenticated and no user_id provided
+        if user_id is None and current_user.is_authenticated:
+            user_id = current_user.id
+        
+        query = FileRecord.query.filter_by(filename=file_key)
+        
+        # Add user filter if provided
+        if user_id is not None:
+            query = query.filter_by(user_id=user_id)
+            
+        file_record = query.first()
+        
+        # Update access statistics if requested and file found
+        if file_record and update_access:
+            file_record.last_accessed = datetime.now(timezone.utc)
+            file_record.access_count += 1
+            db.session.commit()
+            
+        return file_record
+    except Exception as e:
+        logging.exception(f"Error retrieving file record: {e}")
+        return None
+
+def update_pg_tools_version():
+    """Update PostgreSQL tools version in the database config"""
+    try:
+        with app.app_context():
+            # Check if we have a config table
+            inspector = inspect(db.engine)
+            config_table_exists = inspector.has_table('app_config')
+            
+            if not config_table_exists:
+                # Create app_config table if it doesn't exist
+                db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS app_config (
+                    key VARCHAR(100) PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                '''))
+            
+            # Check if the entry already exists
+            result = db.session.execute(db.text("SELECT 1 FROM app_config WHERE key = 'pg_tools_version'")).fetchone()
+            
+            if result:
+                # Update existing entry
+                db.session.execute(db.text("UPDATE app_config SET value = '2.0.12\\Windows', updated_at = CURRENT_TIMESTAMP WHERE key = 'pg_tools_version'"))
+            else:
+                # Insert new entry
+                db.session.execute(db.text("INSERT INTO app_config (key, value, updated_at) VALUES ('pg_tools_version', '2.0.12\\Windows', CURRENT_TIMESTAMP)"))
+            
+            db.session.commit()
+            return True
+    except Exception as e:
+        logging.exception(f"Failed to update PostgreSQL tools version: {e}")
+        return False
+
+# Execute this once at startup
+try:
+    # No need to wrap in app_context here since the function does it internally
+    update_pg_tools_version()
+except Exception as e:
+    logging.warning(f"Could not update PostgreSQL tools version: {e}")
+
 # --- Authentication Routes ---
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -426,26 +621,41 @@ def register():
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters long'}), 400
         
-        if User.query.filter_by(username=username).first():
+        # Check if user exists
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
             return jsonify({'error': 'Username already exists'}), 400
         
-        if User.query.filter_by(email=email).first():
+        existing_email = User.query.filter_by(email=email).first()
+        if existing_email:
             return jsonify({'error': 'Email already exists'}), 400
         
-        user = User(
+        # Create new user
+        hashed_password = generate_password_hash(password)
+        new_user = User(
             username=username,
             email=email,
-            password_hash=generate_password_hash(password)
+            password_hash=hashed_password
         )
-        db.session.add(user)
-        db.session.commit()
         
-        return jsonify({'message': 'User registered successfully'}), 201
+        # Add to database
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Log in the user after registration
+            login_user(new_user)
+            
+            return jsonify({'message': 'User registered and logged in successfully'}), 201
+        except Exception as db_error:
+            db.session.rollback()
+            logging.exception("Database error during registration")
+            return jsonify({'error': f'Database error: {str(db_error)}'}), 500
         
     except Exception as e:
         logging.exception("Registration error occurred")
         db.session.rollback()
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/reset-password', methods=['GET', 'POST'])
 def reset_password_request():
@@ -467,13 +677,83 @@ def reset_password_request():
         
         if not email:
             return jsonify({'error': 'Email is required'}), 400
-            
-        # For now, just return a success message
-        return jsonify({'message': 'Password reset instructions sent to your email'}), 200
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Don't reveal that the user doesn't exist for security reasons
+            return jsonify({'message': 'If this email is registered, password reset instructions will be sent'}), 200
+        
+        # Generate a reset token
+        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        token = serializer.dumps(email, salt='password-reset-salt')
+        
+        # In a real application, you would send an email with the reset link
+        # For this example, we'll just return the token in the response
+        reset_url = url_for('reset_password_confirm', token=token, _external=True)
+        
+        # Log the reset token (in a real app, this would be sent via email)
+        logging.info(f"Password reset requested for {email}. Reset URL: {reset_url}")
+        
+        return jsonify({
+            'message': 'Password reset instructions sent to your email',
+            'debug_token': token if is_debug_mode() else None
+        }), 200
         
     except Exception as e:
         logging.exception("Reset password error occurred")
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password_confirm(token):
+    try:
+        # Verify the token
+        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        email = serializer.loads(token, salt='password-reset-salt', max_age=3600)  # Token valid for 1 hour
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({'error': 'Invalid or expired token'}), 400
+        
+        if request.method == 'GET':
+            return render_template('login/html/reset_confirm.html', token=token)
+        
+        # Process POST request
+        if request.content_type == 'application/x-www-form-urlencoded':
+            new_password = request.form.get('password')
+        elif request.is_json:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            new_password = data.get('password')
+        else:
+            return jsonify({'error': 'Unsupported content type'}), 400
+        
+        if not new_password:
+            return jsonify({'error': 'New password is required'}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+        
+        # Update the user's password
+        user.password_hash = generate_password_hash(new_password)
+        
+        try:
+            db.session.commit()
+            return jsonify({'message': 'Password has been reset successfully'}), 200
+        except Exception as db_error:
+            db.session.rollback()
+            logging.exception("Database error during password reset")
+            return jsonify({'error': f'Database error: {str(db_error)}'}), 500
+            
+    except SignatureExpired:
+        return jsonify({'error': 'The password reset link has expired'}), 400
+    except BadSignature:
+        return jsonify({'error': 'Invalid reset token'}), 400
+    except Exception as e:
+        logging.exception("Reset password confirmation error occurred")
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -498,16 +778,78 @@ def login():
         if not username or not password:
             return jsonify({'error': 'Username and password are required'}), 400
         
+        # Try to find user by username or email
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
-            login_user(user)
-            return jsonify({'message': 'Logged in successfully'}), 200
         
-        return jsonify({'error': 'Invalid username or password'}), 401
+        # If not found by username, try email
+        if not user:
+            user = User.query.filter_by(email=username).first()
+        
+        if user and check_password_hash(user.password_hash, password):
+            # Login successful
+            login_user(user)
+            
+            # Track login activity
+            now = datetime.now(timezone.utc)
+            user.last_login = now
+            user.login_count += 1
+            user.last_ip = request.remote_addr
+            user.user_agent = request.user_agent.string if request.user_agent else None
+            
+            # Create login history record
+            login_history = UserLoginHistory(
+                user_id=user.id,
+                login_time=now,
+                ip_address=request.remote_addr,
+                user_agent=request.user_agent.string if request.user_agent else None,
+                success=True,
+                device_info={
+                    'platform': request.user_agent.platform if request.user_agent else None,
+                    'browser': request.user_agent.browser if request.user_agent else None,
+                    'version': request.user_agent.version if request.user_agent else None,
+                    'language': request.accept_languages.best if request.accept_languages else None,
+                    'pg_tools_version': '2.0.12\\Windows'
+                }
+            )
+            
+            try:
+                db.session.add(login_history)
+                db.session.commit()
+                return jsonify({
+                    'message': 'Logged in successfully',
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email
+                    }
+                }), 200
+            except Exception as db_error:
+                db.session.rollback()
+                logging.exception("Database error during login history recording")
+                # Still return success even if history recording fails
+                return jsonify({'message': 'Logged in successfully (history not recorded)'}), 200
+        
+        # Record failed login attempt
+        if user:
+            failed_login = UserLoginHistory(
+                user_id=user.id,
+                login_time=datetime.now(timezone.utc),
+                ip_address=request.remote_addr,
+                user_agent=request.user_agent.string if request.user_agent else None,
+                success=False
+            )
+            try:
+                db.session.add(failed_login)
+                db.session.commit()
+            except Exception as db_error:
+                db.session.rollback()
+                logging.exception("Database error during failed login recording")
+        
+        return jsonify({'error': 'Invalid username/email or password'}), 401
         
     except Exception as e:
         logging.exception("Login error occurred")
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/logout')
 @login_required
@@ -523,7 +865,68 @@ def profile():
         'username': current_user.username,
         'email': current_user.email,
         'phone_number': current_user.phone_number,
-        'created_at': current_user.created_at.isoformat()
+        'created_at': current_user.created_at.isoformat(),
+        'last_login': current_user.last_login.isoformat() if current_user.last_login else None,
+        'login_count': current_user.login_count,
+        'last_ip': current_user.last_ip
+    })
+
+@app.route('/profile/activity')
+@login_required
+def user_activity():
+    """Return user activity statistics including login history and file operations"""
+    
+    # Get login history
+    login_history = UserLoginHistory.query.filter_by(user_id=current_user.id).order_by(
+        UserLoginHistory.login_time.desc()).limit(10).all()
+    
+    # Get file statistics
+    file_count = FileRecord.query.filter_by(user_id=current_user.id).count()
+    total_file_size = db.session.query(db.func.sum(FileRecord.file_size)).filter(
+        FileRecord.user_id == current_user.id).scalar() or 0
+    
+    # Get most accessed files
+    most_accessed_files = FileRecord.query.filter_by(user_id=current_user.id).order_by(
+        FileRecord.access_count.desc()).limit(5).all()
+    
+    # Get recent conversions
+    recent_conversions = FileConversionRecord.query.filter_by(user_id=current_user.id).order_by(
+        FileConversionRecord.conversion_time.desc()).limit(5).all()
+    
+    # Format data for response
+    return jsonify({
+        'login_history': [
+            {
+                'login_time': login.login_time.isoformat(),
+                'ip_address': login.ip_address,
+                'success': login.success,
+                'device_info': login.device_info
+            } for login in login_history
+        ],
+        'file_statistics': {
+            'file_count': file_count,
+            'total_size': total_file_size,
+            'formatted_size': format_bytes(total_file_size),
+            'most_accessed_files': [
+                {
+                    'id': f.id,
+                    'filename': f.original_filename,
+                    'access_count': f.access_count,
+                    'last_accessed': f.last_accessed.isoformat() if f.last_accessed else None
+                } for f in most_accessed_files
+            ],
+            'recent_conversions': [
+                {
+                    'id': c.id,
+                    'conversion_type': c.conversion_type,
+                    'output_file': c.output_file,
+                    'conversion_time': c.conversion_time.isoformat(),
+                    'file_size': format_bytes(c.file_size) if c.file_size else 'Unknown',
+                    'processing_time_ms': c.processing_time_ms,
+                    'pg_tools_version': c.pg_tools_version
+                } for c in recent_conversions
+            ]
+        }
     })
 
  # --- Password Reset Routes ---
@@ -707,30 +1110,16 @@ def verify_otp():
 # --- Main Routes ---
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    # Redirect to login page as that's our main entry point
+    return redirect(url_for('login'))
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """API health check endpoint for client side availability verification"""
-    try:
-        # Verify database connection
-        User.query.first()
-        # Verify file system access
-        os.access(UPLOAD_FOLDER, os.W_OK)
-        os.access(PROCESSED_FOLDER, os.W_OK)
-        return jsonify({
-            "status": "ok", 
-            "message": "Service is operational",
-            "timestamp": datetime.now().isoformat()
-        }), 200
-    except Exception as e:
-        logging.error(f"Health check failed: {str(e)}")
-        # Always return a response, even on failure
-        return jsonify({
-            "status": "error",
-            "message": "Service is experiencing issues",
-            "timestamp": datetime.now().isoformat()
-        }), 503  # Service Unavailable
+@app.route('/pdf-tools')
+@login_required
+def pdf_tools_shortcut():
+    """Redirect to PDF operations dashboard"""
+    return redirect(url_for('pdf_operations.pdf_dashboard'))
+
+# Health check endpoint
 
 @app.route('/admin/dashboard')
 @admin_required
@@ -843,6 +1232,94 @@ def admin_dashboard():
     free_space=f"{free_space_gb:.2f} GB",
     recent_users=recent_users
     )
+
+@app.route('/admin/system-stats')
+@admin_required
+def admin_system_stats():
+    """Advanced system statistics including user activity and PG tools information"""
+    from datetime import timedelta
+    
+    # Get PostgreSQL tools version
+    pg_tools_version = None
+    try:
+        result = db.engine.execute("SELECT value FROM app_config WHERE key = 'pg_tools_version'").fetchone()
+        if result:
+            pg_tools_version = result[0]
+    except Exception as e:
+        logging.warning(f"Could not retrieve PG tools version: {e}")
+    
+    # User statistics
+    user_count = User.query.count()
+    active_users_24h = UserLoginHistory.query.filter(
+        UserLoginHistory.login_time > datetime.now(timezone.utc) - timedelta(days=1)
+    ).with_entities(UserLoginHistory.user_id).distinct().count()
+    
+    # Login statistics
+    login_attempts = UserLoginHistory.query.count()
+    failed_logins = UserLoginHistory.query.filter_by(success=False).count()
+    
+    # File statistics
+    file_count = FileRecord.query.count()
+    conversion_count = FileConversionRecord.query.count()
+    total_size = db.session.query(db.func.sum(FileRecord.file_size)).scalar() or 0
+    
+    # File type breakdown
+    file_types = db.session.query(
+        FileRecord.file_type, 
+        db.func.count(FileRecord.id)
+    ).group_by(FileRecord.file_type).all()
+    
+    # Conversion type breakdown
+    conversion_types = db.session.query(
+        FileConversionRecord.conversion_type, 
+        db.func.count(FileConversionRecord.id)
+    ).group_by(FileConversionRecord.conversion_type).all()
+    
+    # System resource usage
+    disk_usage = shutil.disk_usage('/')
+    free_space_gb = disk_usage.free / (1024 * 1024 * 1024)
+    
+    # Format the response data
+    return jsonify({
+        'pg_tools': {
+            'version': pg_tools_version or 'Unknown',
+            'last_update': datetime.now(timezone.utc).isoformat(),
+            'status': 'Active' if pg_tools_version else 'Not Detected'
+        },
+        'user_stats': {
+            'total_users': user_count,
+            'active_users_24h': active_users_24h,
+            'login_attempts': login_attempts,
+            'failed_logins': failed_logins,
+            'success_rate': round(((login_attempts - failed_logins) / login_attempts) * 100, 2) if login_attempts > 0 else 100
+        },
+        'file_stats': {
+            'total_files': file_count,
+            'total_size': total_size,
+            'formatted_size': format_bytes(total_size),
+            'conversions': conversion_count,
+            'file_types': [{
+                'type': file_type,
+                'count': count
+            } for file_type, count in file_types],
+            'conversion_types': [{
+                'type': conv_type,
+                'count': count
+            } for conv_type, count in conversion_types]
+        },
+        'system_resources': {
+            'disk_space': {
+                'total_gb': round(disk_usage.total / (1024 * 1024 * 1024), 2),
+                'used_gb': round(disk_usage.used / (1024 * 1024 * 1024), 2),
+                'free_gb': round(free_space_gb, 2),
+                'percent_used': round((disk_usage.used / disk_usage.total) * 100, 2)
+            },
+            'timestamps': {
+                'server_time': datetime.now().isoformat(),
+                'utc_time': datetime.now(timezone.utc).isoformat()
+            }
+        }
+    })
 
 @app.route('/admin/users')
 @admin_required
@@ -1339,14 +1816,45 @@ def upload_file():
         
         # Save file
         file.save(filepath)
+        file_size = os.path.getsize(filepath)
+        
+        # Extract MIME type and MD5 hash
+        import hashlib
+        import mimetypes
+        
+        mimetype = file.mimetype or mimetypes.guess_type(filepath)[0]
+        
+        # Calculate MD5 hash for deduplication
+        md5_hash = None
+        try:
+            with open(filepath, 'rb') as f:
+                md5_hash = hashlib.md5(f.read()).hexdigest()
+        except Exception as e:
+            logging.warning(f"Failed to calculate MD5 hash for {filepath}: {e}")
+        
+        # Count PDF pages if it's a PDF
+        page_count = None
+        if filepath.lower().endswith('.pdf'):
+            try:
+                with open(filepath, 'rb') as f:
+                    reader = PdfReader(f)
+                    page_count = len(reader.pages)
+            except Exception as e:
+                logging.warning(f"Failed to count pages in PDF {filepath}: {e}")
         
         # Record file in database
         file_record = FileRecord(
             filename=unique_filename,
             original_filename=filename,
-            file_size=os.path.getsize(filepath),
-            file_type='pdf',
-            user_id=getattr(current_user, 'id', 1)  # Use default ID 1 for tests
+            file_size=file_size,
+            file_type=file.mimetype.split('/')[1] if file.mimetype else filepath.split('.')[-1],
+            user_id=getattr(current_user, 'id', 1),  # Use default ID 1 for tests
+            mimetype=mimetype,
+            hash_md5=md5_hash,
+            page_count=page_count,
+            storage_path=os.path.abspath(filepath),
+            last_accessed=datetime.now(timezone.utc),
+            access_count=1
         )
         db.session.add(file_record)
         db.session.commit()
@@ -2080,6 +2588,24 @@ def download_file():
     
     if not os.path.exists(file_path):
         abort(404, "File not found")
+    
+    # Update file access statistics if file exists in database
+    try:
+        file_record = get_file_by_key(key)
+        
+        # If no record found but file exists, it might be a processed file
+        # Let's check if it's in the FileConversionRecord table
+        if not file_record and key.startswith(('merged_', 'split_', 'compressed_', 'converted_', 'protected_')):
+            conversion = FileConversionRecord.query.filter_by(output_file=key).first()
+            if conversion:
+                # Update access for the original file
+                original_file = db.session.get(FileRecord, conversion.original_file_id)
+                if original_file:
+                    original_file.last_accessed = datetime.now(timezone.utc)
+                    original_file.access_count += 1
+                    db.session.commit()
+    except Exception as e:
+        logging.warning(f"Failed to update file access statistics: {e}")
     
     return send_file(
         file_path,
@@ -3234,6 +3760,14 @@ try:
 except Exception:
     logging.warning("Advanced API blueprint not available")
 
+# Register the PDF operations blueprint
+try:
+    from advanced.pdf_operations_blueprint import pdf_operations
+    app.register_blueprint(pdf_operations)
+    logging.info("PDF operations blueprint registered successfully")
+except Exception:
+    logging.warning("PDF operations blueprint not available")
+
 # ============================================================================
 # OBSERVABILITY SETUP
 # ============================================================================
@@ -3260,18 +3794,66 @@ if TELEMETRY_AVAILABLE:
 # --- Database Initialization ---
 def init_db():
     with app.app_context():
-        db.create_all()
-
-        # Ensure an admin user exists with username/password: admin/admin
-        admin_user = User.query.filter_by(username='admin').first()
-        if admin_user is None:
-            admin_user = User(
-                username='admin',
-                email='admin@example.com',
-                password_hash=generate_password_hash('admin')
-            )
-            db.session.add(admin_user)
+        try:
+            # Check if database tables exist by inspecting the db
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            
+            if 'user' not in tables:
+                print("Creating database tables...")
+                db.create_all()
+                print("Database tables created successfully.")
+            else:
+                print("Database tables already exist.")
+                
+            # Ensure an admin user exists with username/password: admin/admin
+            admin_user = User.query.filter_by(username='admin').first()
+            if admin_user is None:
+                print("Creating admin user...")
+                new_admin = User(
+                    username='admin',
+                    email='admin@example.com',
+                    password_hash=generate_password_hash('admin')
+                )
+                db.session.add(new_admin)
+                db.session.commit()
+                print("Admin user created successfully.")
+            else:
+                print("Admin user already exists.")
+            
+            # Store PostgreSQL tools version in app_config
+            # Use the inspector to check for the config table
+            config_table_exists = inspector.has_table('app_config')
+            
+            if not config_table_exists:
+                db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS app_config (
+                    key VARCHAR(100) PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                '''))
+                
+        except Exception as e:
+            print(f"Error initializing database: {str(e)}")
+            logging.exception("Database initialization error:")
+            
+            # Update PG tools version
+            # Check if the entry already exists
+            result = db.session.execute(db.text("SELECT 1 FROM app_config WHERE key = 'pg_tools_version'")).fetchone()
+            
+            if result:
+                # Update existing entry
+                db.session.execute(db.text("UPDATE app_config SET value = '2.0.12\\Windows', updated_at = CURRENT_TIMESTAMP WHERE key = 'pg_tools_version'"))
+            else:
+                # Insert new entry
+                db.session.execute(db.text("INSERT INTO app_config (key, value, updated_at) VALUES ('pg_tools_version', '2.0.12\\Windows', CURRENT_TIMESTAMP)"))
+            
             db.session.commit()
+            
+            print(f"PostgreSQL Tools Version: 2.0.12\\Windows")
+        except Exception as e:
+            logging.warning(f"Could not store PostgreSQL tools version: {e}")
             print("Created admin user with default credentials admin/admin (for local testing)")
         else:
             # Keep credentials in sync for local testing
