@@ -378,3 +378,11 @@ scripts/
 shellscripts/
 SQL/
 test_pdfs/
+
+# Backup and temporary frontend files
+static/backup/
+static/login/
+static/optimize-login-bg.new.js
+static/optimize-login-bg.original.js
+static/webpack.config.new.js
+static/webpack.config.original.js
