@@ -1,37 +1,201 @@
 /* Mobile-specific text size adjustment */
 @media screen and (max-width: 768px) {
   html, body {
-    /* Use standard property with fallbacks */
     text-size-adjust: 100%;
     -moz-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
   
-  /* Additional mobile optimizations */
+  /* Mobile navigation */
+  .nav__menu {
+    position: fixed;
+    top: var(--header-height);
+    left: -100%;
+    width: 100%;
+    height: calc(100vh - var(--header-height));
+    background-color: var(--white);
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: var(--space-8);
+    transition: left var(--transition-normal);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .nav__menu.active {
+    left: 0;
+  }
+
+  .nav__list {
+    flex-direction: column;
+    width: 100%;
+    gap: var(--space-4);
+  }
+
+  .nav__toggle {
+    display: block;
+  }
+
+  /* Mobile upload areas */
   .upload-container {
     width: 100%;
     padding: 0.75rem;
   }
   
-  /* Improve tap target sizes on mobile */
+  .upload__area {
+    padding: var(--space-8);
+  }
+
+  /* Touch-friendly buttons */
   button, 
   select, 
   input[type="file"] + label {
     min-height: 44px;
     padding: 0.5rem 1rem;
   }
+
+  /* Modal adjustments */
+  .modal__content {
+    width: 95vw;
+    max-height: 95vh;
+    margin: var(--space-4);
+  }
+
+  /* Dashboard mobile layout */
+  .dashboard__grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .files__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* Base responsive grid for all PDF tools */
-.pdf-tools-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
+@media screen and (max-width: 480px) {
+  .container {
+    padding: 0 var(--space-3);
+  }
+
+  .hero {
+    padding: var(--space-12) 0;
+  }
+
+  .hero__title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .hero__actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .features__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer__content {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
 }
 
-@media screen and (max-width: 640px) {
-  .pdf-tools-grid {
+/* Large screens */
+@media screen and (min-width: 1200px) {
+  .features__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .files__grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+/* Print styles */
+@media print {
+  .header,
+  .footer,
+  .nav__toggle,
+  .btn,
+  .modal {
+    display: none !important;
+  }
+
+  .main {
+    margin-top: 0;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --gray-100: #f0f0f0;
+    --gray-200: #e0e0e0;
+    --gray-300: #c0c0c0;
+    --gray-400: #a0a0a0;
+    --gray-500: #808080;
+    --gray-600: #606060;
+    --gray-700: #404040;
+    --gray-800: #202020;
+    --gray-900: #000000;
+  }
+
+  .btn--outline {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .modal__content {
+    animation: none;
+  }
+}
+
+/* Focus visible support */
+@supports selector(:focus-visible) {
+  *:focus {
+    outline: none;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
+
+/* Container queries for component-based responsive design */
+@supports (container-type: inline-size) {
+  .dashboard__card {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 400px) {
+    .file__actions {
+      flex-direction: column;
+    }
+
+    .file__actions .btn {
+      width: 100%;
+    }
+  }
+}
     grid-template-columns: 1fr;
   }
 }

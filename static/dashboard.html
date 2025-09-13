@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - PDF Tool</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicons@2.5.0/fonts/remixicon.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <div class="nav__brand">
+                <a href="/" class="nav__logo">
+                    <i class="ri-file-pdf-line"></i>
+                    PDF Tool
+                </a>
+            </div>
+            
+            <div class="nav__menu" id="nav-menu">
+                <ul class="nav__list">
+                    <li class="nav__item">
+                        <a href="/" class="nav__link">Home</a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="/dashboard" class="nav__link nav__link--active">Dashboard</a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="/tools" class="nav__link">Tools</a>
+                    </li>
+                </ul>
+                
+                <div class="nav__auth" id="nav-auth">
+                    <!-- Auth links will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="nav__toggle" id="nav-toggle">
+                <i class="ri-menu-line"></i>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="dashboard">
+                <div class="dashboard__header">
+                    <h1 class="dashboard__title">Dashboard</h1>
+                    <p class="dashboard__subtitle">Manage your PDF files and operations</p>
+                </div>
+                
+                <div class="dashboard__grid">
+                    <!-- Upload Section -->
+                    <div class="dashboard__card">
+                        <div class="card__header">
+                            <h2 class="card__title">
+                                <i class="ri-upload-cloud-line"></i>
+                                Upload Files
+                            </h2>
+                        </div>
+                        
+                        <div class="card__content">
+                            <div class="upload__area" id="dashboard-upload">
+                                <i class="ri-upload-cloud-line upload__icon"></i>
+                                <p class="upload__text">Drop PDF files here or click to browse</p>
+                                <p class="upload__subtext">Maximum file size: 50MB</p>
+                                <input type="file" class="upload__input" id="dashboard-files" accept=".pdf" multiple>
+                            </div>
+                            
+                            <div class="upload__progress" id="upload-progress" style="display: none;">
+                                <div class="progress">
+                                    <div class="progress__bar" id="progress-bar"></div>
+                                </div>
+                                <p class="progress__text" id="progress-text">Uploading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Files List -->
+                    <div class="dashboard__card dashboard__card--full">
+                        <div class="card__header">
+                            <h2 class="card__title">
+                                <i class="ri-file-list-line"></i>
+                                Your Files
+                            </h2>
+                            <button class="btn btn--outline btn--sm" onclick="Dashboard.refreshFiles()">
+                                <i class="ri-refresh-line"></i>
+                                Refresh
+                            </button>
+                        </div>
+                        
+                        <div class="card__content">
+                            <div class="files__container" id="files-container">
+                                <div class="loading">
+                                    <div class="spinner"></div>
+                                    <p>Loading files...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/csrf-protection.js"></script>
+</body>
+</html>

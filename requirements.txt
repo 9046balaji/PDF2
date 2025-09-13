@@ -1,5 +1,6 @@
 # Core Flask and Database
 flask
+flask-wtf
 flask-sqlalchemy
 flask-login
 werkzeug
@@ -20,6 +21,7 @@ openpyxl
 
 # Utilities
 python-dotenv
+python-magic
 
 # Authentication and Security
 itsdangerous
@@ -27,8 +29,10 @@ flask-mail
 twilio
 redis
 
-# AI/ML and Advanced Features
+# Background Tasks
 celery
+
+# AI/ML Features (optional)
 langchain
 transformers
 torch
@@ -37,7 +41,6 @@ faiss-cpu
 spacy
 gensim
 flask-restx
-spacy
 spacy
 
 # Observability

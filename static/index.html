@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Tool - Professional PDF Processing</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicons@2.5.0/fonts/remixicon.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <div class="nav__brand">
+                <a href="/" class="nav__logo">
+                    <i class="ri-file-pdf-line"></i>
+                    PDF Tool
+                </a>
+            </div>
+            
+            <div class="nav__menu" id="nav-menu">
+                <ul class="nav__list">
+                    <li class="nav__item">
+                        <a href="/" class="nav__link nav__link--active">Home</a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="/dashboard" class="nav__link">Dashboard</a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="/tools" class="nav__link">Tools</a>
+                    </li>
+                </ul>
+                
+                <div class="nav__auth" id="nav-auth">
+                    <!-- Auth links will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="nav__toggle" id="nav-toggle">
+                <i class="ri-menu-line"></i>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <div class="container">
+                <div class="hero__content">
+                    <h1 class="hero__title">Professional PDF Processing</h1>
+                    <p class="hero__description">
+                        Merge, split, compress, and manipulate PDF files with ease. 
+                        Secure, fast, and reliable PDF tools for all your document needs.
+                    </p>
+                    <div class="hero__actions">
+                        <a href="/upload" class="btn btn--primary">Get Started</a>
+                        <a href="/tools" class="btn btn--secondary">View Tools</a>
+                    </div>
+                </div>
+                
+                <div class="hero__image">
+                    <div class="hero__card">
+                        <i class="ri-file-pdf-2-line hero__icon"></i>
+                        <h3>Upload & Process</h3>
+                        <p>Drag and drop your PDF files</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="container">
+                <h2 class="section__title">PDF Tools</h2>
+                <div class="features__grid">
+                    <div class="feature__card" data-tool="merge">
+                        <i class="ri-file-copy-line feature__icon"></i>
+                        <h3 class="feature__title">Merge PDFs</h3>
+                        <p class="feature__description">Combine multiple PDF files into one document</p>
+                        <button class="btn btn--outline" onclick="openTool('merge')">Use Tool</button>
+                    </div>
+                    
+                    <div class="feature__card" data-tool="split">
+                        <i class="ri-scissors-line feature__icon"></i>
+                        <h3 class="feature__title">Split PDF</h3>
+                        <p class="feature__description">Split PDF into individual pages or ranges</p>
+                        <button class="btn btn--outline" onclick="openTool('split')">Use Tool</button>
+                    </div>
+                    
+                    <div class="feature__card" data-tool="compress">
+                        <i class="ri-compasses-2-line feature__icon"></i>
+                        <h3 class="feature__title">Compress PDF</h3>
+                        <p class="feature__description">Reduce file size while maintaining quality</p>
+                        <button class="btn btn--outline" onclick="openTool('compress')">Use Tool</button>
+                    </div>
+                    
+                    <div class="feature__card" data-tool="extract">
+                        <i class="ri-text feature__icon"></i>
+                        <h3 class="feature__title">Extract Text</h3>
+                        <p class="feature__description">Extract text content from PDF files</p>
+                        <button class="btn btn--outline" onclick="openTool('extract')">Use Tool</button>
+                    </div>
+                    
+                    <div class="feature__card" data-tool="rotate">
+                        <i class="ri-refresh-line feature__icon"></i>
+                        <h3 class="feature__title">Rotate Pages</h3>
+                        <p class="feature__description">Rotate PDF pages to correct orientation</p>
+                        <button class="btn btn--outline" onclick="openTool('rotate')">Use Tool</button>
+                    </div>
+                    
+                    <div class="feature__card" data-tool="convert">
+                        <i class="ri-file-transfer-line feature__icon"></i>
+                        <h3 class="feature__title">Convert Format</h3>
+                        <p class="feature__description">Convert PDF to other formats</p>
+                        <button class="btn btn--outline" onclick="openTool('convert')">Use Tool</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PDF Tool Modal -->
+        <div class="modal" id="pdf-tool-modal">
+            <div class="modal__content">
+                <div class="modal__header">
+                    <h3 class="modal__title" id="modal-title">PDF Tool</h3>
+                    <button class="modal__close" id="modal-close">
+                        <i class="ri-close-line"></i>
+                    </button>
+                </div>
+                
+                <div class="modal__body" id="modal-body">
+                    <!-- Tool content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__content">
+                <div class="footer__brand">
+                    <a href="/" class="footer__logo">
+                        <i class="ri-file-pdf-line"></i>
+                        PDF Tool
+                    </a>
+                    <p class="footer__description">
+                        Professional PDF processing tools for everyone
+                    </p>
+                </div>
+                
+                <div class="footer__links">
+                    <div class="footer__group">
+                        <h4 class="footer__title">Tools</h4>
+                        <ul class="footer__list">
+                            <li><a href="/tools/merge" class="footer__link">Merge PDFs</a></li>
+                            <li><a href="/tools/split" class="footer__link">Split PDF</a></li>
+                            <li><a href="/tools/compress" class="footer__link">Compress</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer__group">
+                        <h4 class="footer__title">Account</h4>
+                        <ul class="footer__list">
+                            <li><a href="/login" class="footer__link">Login</a></li>
+                            <li><a href="/register" class="footer__link">Register</a></li>
+                            <li><a href="/dashboard" class="footer__link">Dashboard</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer__bottom">
+                <p>&copy; 2025 PDF Tool. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/pdf-tools.js"></script>
+    <script src="/static/js/csrf-protection.js"></script>
+</body>
+</html>

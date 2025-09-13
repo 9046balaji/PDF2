@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_file, abort, render_template_string, url_for, redirect, session, current_app, render_template
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect
+from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
@@ -187,9 +188,20 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico')
 
 # Configure database with fallback
+
+# CSRF Protection
+csrf = CSRFProtect(app)
+
+# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# File upload configuration
 app.config['MAX_CONTENT_LENGTH'] = int(get_env('MAX_CONTENT_LENGTH_MB', '2048')) * 1024 * 1024  # default 2GB
+
+# Ensure upload directories exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -198,6 +210,158 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Flask-Mail configuration
+# CSRF token helper
+@app.context_processor
+def inject_csrf_token():
+    from flask_wtf.csrf import generate_csrf
+    return dict(csrf_token=generate_csrf)
+
+# Static file routes
+@app.route('/')
+def index():
+    return send_file('static/index.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return send_file('static/dashboard.html')
+
+@app.route('/login')
+def login_page():
+    return render_template('login/index.html')
+
+@app.route('/register')
+def register_page():
+    return render_template('login/register.html')
+
+# API endpoint for auth status
+@app.route('/api/auth/status')
+def auth_status():
+    return jsonify({
+        'authenticated': current_user.is_authenticated,
+        'user': {
+            'id': current_user.id,
+            'username': current_user.username,
+            'email': current_user.email
+        } if current_user.is_authenticated else None
+    })
+
+@app.route('/api/auth/me')
+@login_required
+def auth_me():
+    return jsonify({
+        'user': {
+            'id': current_user.id,
+            'username': current_user.username,
+            'email': current_user.email
+        }
+    })
+
+# CSRF token endpoint
+@app.route('/get-csrf-token')
+def get_csrf_token():
+    from flask_wtf.csrf import generate_csrf
+    return jsonify({'csrf_token': generate_csrf()})
+
+# Generic PDF processing endpoint
+@app.route('/api/process-pdf', methods=['POST'])
+@login_required
+def process_pdf():
+    try:
+        operation = request.form.get('operation')
+        if not operation:
+            return jsonify({'error': 'Operation not specified'}), 400
+        
+        # Handle file upload
+        files = request.files.getlist('file') or request.files.getlist('files')
+        if not files or not files[0].filename:
+            return jsonify({'error': 'No files provided'}), 400
+        
+        # Process based on operation type
+        if operation == 'merge':
+            return handle_merge_operation(files)
+        elif operation == 'split':
+            return handle_split_operation(files[0], request.form)
+        elif operation == 'compress':
+            return handle_compress_operation(files[0], request.form)
+        elif operation == 'extract_text':
+            return handle_extract_operation(files[0])
+        elif operation == 'rotate':
+            return handle_rotate_operation(files[0], request.form)
+        elif operation == 'convert':
+            return handle_convert_operation(files[0], request.form)
+        else:
+            return jsonify({'error': 'Unknown operation'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def handle_merge_operation(files):
+    """Handle PDF merge operation"""
+    if len(files) < 2:
+        return jsonify({'error': 'At least 2 files required for merge'}), 400
+    
+    # Save uploaded files temporarily
+    file_paths = []
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{int(time.time())}_{filename}")
+            file.save(filepath)
+            file_paths.append(filepath)
+    
+    try:
+        # Use existing merge functionality
+        from advanced.pdf_operations_blueprint import get_processed_path, create_file_record
+        from pdf_processor import PDFProcessor
+        
+        output_path = get_processed_path('merged')
+        pdf_processor = PDFProcessor()
+        pdf_processor.merge_pdfs(file_paths, output_path)
+        
+        # Create file record
+        merged_file = create_file_record(
+            filename=f"merged_{int(time.time())}.pdf",
+            storage_path=output_path,
+            user_id=current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'file_id': str(merged_file.id),
+            'download_url': url_for('pdf_operations.download_pdf', file_id=merged_file.id)
+        })
+        
+    finally:
+        # Clean up temporary files
+        for filepath in file_paths:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+def handle_split_operation(file, form_data):
+    """Handle PDF split operation"""
+    # Implementation would go here
+    return jsonify({'error': 'Split operation not yet implemented'}), 501
+
+def handle_compress_operation(file, form_data):
+    """Handle PDF compress operation"""
+    # Implementation would go here
+    return jsonify({'error': 'Compress operation not yet implemented'}), 501
+
+def handle_extract_operation(file):
+    """Handle text extraction operation"""
+    # Implementation would go here
+    return jsonify({'error': 'Extract operation not yet implemented'}), 501
+
+def handle_rotate_operation(file, form_data):
+    """Handle PDF rotate operation"""
+    # Implementation would go here
+    return jsonify({'error': 'Rotate operation not yet implemented'}), 501
+
+def handle_convert_operation(file, form_data):
+    """Handle PDF convert operation"""
+    # Implementation would go here
+    return jsonify({'error': 'Convert operation not yet implemented'}), 501
 app.config['MAIL_SERVER'] = get_env('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(get_env('MAIL_PORT', '587'))
 app.config['MAIL_USE_TLS'] = get_env('MAIL_USE_TLS', 'true').lower() == 'true'
